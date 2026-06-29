@@ -1,6 +1,10 @@
-const { app, BrowserWindow, dialog, shell } = require('electron');
+const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
 const https = require('https');
 const path = require('path');
+
+ipcMain.on('open-external', (event, url) => {
+  shell.openExternal(url);
+});
 
 const REPO_OWNER = 'siterator67-cmyk';
 const REPO_NAME = 'WorldChat';
@@ -16,6 +20,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     backgroundColor: '#1b2838',
     show: false,

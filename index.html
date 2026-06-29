@@ -50,6 +50,24 @@
     </div>
   </div>
 
+  <!-- Verify Email Screen -->
+  <div class="screen" id="screen-verify">
+    <div class="auth-box" style="text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">📧</div>
+      <div class="screen-title" style="margin-bottom:4px;">Check your email</div>
+      <div class="screen-subtitle" id="verify-subtitle">We sent a 6-digit code to your email</div>
+      <div class="input-group" style="margin-top:20px;">
+        <input type="text" id="verify-code" placeholder="Enter 6-digit code" maxlength="6" style="text-align:center;font-size:24px;letter-spacing:8px;">
+        <div class="error-msg" id="error-verify"></div>
+      </div>
+      <button class="btn btn-primary" id="verify-btn">Verify</button>
+      <div style="margin-top:14px;">
+        <span style="color:#8f98a0;font-size:13px;">Didn't get it?</span>
+        <button class="btn-link" id="resend-btn" style="background:none;border:none;color:#66c0f4;font-size:13px;cursor:pointer;">Resend code</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Language Select Screen -->
   <div class="screen" id="screen-lang">
     <div class="lang-container">

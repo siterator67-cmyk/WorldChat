@@ -2,3 +2,5 @@ node_modules/
 dist/
 .claude/
 website/
+server/worldchat.db
+server/*.db

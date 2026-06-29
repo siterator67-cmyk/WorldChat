@@ -1,3 +1,5 @@
+const API_URL = 'https://worldchat-server.onrender.com';
+
 const app = {
   currentScreen: 'auth',
   authMode: 'register',
@@ -10,7 +12,16 @@ const app = {
   chats: [],
   activeChatId: null,
   addingChat: false,
+  token: null,
+  pendingEmail: null,
 };
+
+async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (app.token) headers['Authorization'] = 'Bearer ' + app.token;
+  const res = await fetch(API_URL + path, { ...options, headers, body: options.body ? JSON.stringify(options.body) : undefined });
+  return res.json();
+}
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -98,7 +109,10 @@ function saveUserData() {
   }));
 }
 function logout() {
+  if (app.token) api('/api/logout', { method: 'POST' });
+  localStorage.removeItem('worldchat_token');
   localStorage.removeItem('worldchat_session');
+  app.token = null;
   app.currentUser = null;
   app.chats = [];
   app.myCountry = null;
@@ -108,7 +122,7 @@ function logout() {
   showScreen('screen-auth');
 }
 
-function handleAuth() {
+async function handleAuth() {
   clearErrors();
   const username = document.getElementById('auth-username').value.trim();
   const email = document.getElementById('auth-email').value.trim();
@@ -124,30 +138,37 @@ function handleAuth() {
   if (/[а-яА-ЯёЁ]/.test(email)) return showError('error-email', t('cyrillicNotAllowed'));
   if (!email.includes('@')) return showError('error-email', t('invalidEmail'));
 
-  const domain = email.split('@')[1]?.toLowerCase();
-  if (!domain || !ALLOWED_EMAIL_DOMAINS.includes(domain)) {
-    return showError('error-email', t('onlyRealEmail'));
-  }
-
   if (!password) return showError('error-password', t('passwordRequired'));
   if (password.length < 6) return showError('error-password', t('minChars6'));
 
-  const users = getUsers();
+  const authBtn = document.getElementById('auth-btn');
+  authBtn.disabled = true;
+  authBtn.textContent = 'Please wait...';
 
   if (app.authMode === 'register') {
-    if (users.find(u => u.email === email.toLowerCase())) {
-      return showError('error-email', t('accountExists'));
-    }
-    users.push({ username, email: email.toLowerCase(), password });
-    saveUsers(users);
-    loginAs(email.toLowerCase());
-    showScreen('screen-lang');
+    const res = await api('/api/register', { method: 'POST', body: { username, email, password } });
+    authBtn.disabled = false;
+    authBtn.textContent = 'Create account';
+    if (res.error) return showError('error-email', res.error);
+    app.pendingEmail = email.toLowerCase();
+    document.getElementById('verify-subtitle').textContent = 'We sent a 6-digit code to ' + email;
+    showScreen('screen-verify');
   } else {
-    const user = users.find(u => u.email === email.toLowerCase() && u.password === password);
-    if (!user) {
-      return showError('error-email', t('userNotFound'));
+    const res = await api('/api/login', { method: 'POST', body: { email, password } });
+    authBtn.disabled = false;
+    authBtn.textContent = 'Log in';
+    if (res.needsVerification) {
+      app.pendingEmail = email.toLowerCase();
+      document.getElementById('verify-subtitle').textContent = 'We sent a 6-digit code to ' + email;
+      showScreen('screen-verify');
+      return;
     }
-    loginAs(email.toLowerCase());
+    if (res.error) return showError('error-email', res.error);
+    app.token = res.token;
+    localStorage.setItem('worldchat_token', res.token);
+    app.currentUser = res.user.email;
+    app.subscription = res.user.subscription;
+    loadUserData();
     if (app.selectedLang && app.myCountry && app.chats.length > 0) {
       renderSidebar();
       showScreen('screen-main');
@@ -165,6 +186,37 @@ function showError(id, msg) {
 }
 function clearErrors() {
   document.querySelectorAll('.error-msg').forEach(e => { e.style.display = 'none'; });
+}
+
+// ===== VERIFY EMAIL =====
+function initVerify() {
+  document.getElementById('verify-btn').addEventListener('click', async () => {
+    const code = document.getElementById('verify-code').value.trim();
+    if (code.length !== 6) return showError('error-verify', 'Enter the 6-digit code');
+    const btn = document.getElementById('verify-btn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+    const res = await api('/api/verify', { method: 'POST', body: { email: app.pendingEmail, code } });
+    btn.disabled = false;
+    btn.textContent = 'Verify';
+    if (res.error) return showError('error-verify', res.error);
+    if (res.token) {
+      app.token = res.token;
+      localStorage.setItem('worldchat_token', res.token);
+      app.currentUser = res.user.email;
+      app.subscription = res.user.subscription;
+      showScreen('screen-lang');
+    }
+  });
+
+  document.getElementById('resend-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('resend-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    await api('/api/resend-code', { method: 'POST', body: { email: app.pendingEmail } });
+    btn.disabled = false;
+    btn.textContent = 'Resend code';
+  });
 }
 
 // ===== LANGUAGE SELECT =====
@@ -719,119 +771,40 @@ function initMedia() {
 }
 
 // ===== PAYMENT =====
-function openPaymentScreen(plan) {
-  app.pendingPlan = plan;
-  const icon = document.getElementById('payment-icon');
-  const name = document.getElementById('payment-plan-name');
-  const amount = document.getElementById('payment-amount');
-  const features = document.getElementById('payment-features');
-  const payBtn = document.getElementById('pay-btn');
-
-  if (plan === 'premium') {
-    icon.textContent = '👑';
-    name.textContent = 'Premium';
-    amount.innerHTML = '$1.00<span>/month</span>';
-    amount.className = 'payment-amount';
-    features.textContent = 'Public chat with everyone from both countries. Text only.';
-    payBtn.textContent = 'Pay $1.00';
-    payBtn.className = 'btn btn-payment';
-  } else {
-    icon.textContent = '💎';
-    name.textContent = 'Premium+';
-    const price = app.subscription === 'premium' ? '$1.99' : '$2.99';
-    amount.innerHTML = price + '<span>/month</span>';
-    amount.className = 'payment-amount pink-price';
-    features.textContent = 'Everything from Premium + photos, videos, voice messages, "Prem+" badge.';
-    payBtn.textContent = 'Pay ' + price;
-    payBtn.className = 'btn btn-payment pink-btn';
+async function openPaymentScreen(plan) {
+  if (!app.token) return;
+  const res = await api('/api/create-checkout', { method: 'POST', body: { plan } });
+  if (res.url) {
+    if (window.electronAPI) window.electronAPI.openExternal(res.url);
+    else window.open(res.url, '_blank');
+    app.pendingPlan = plan;
+    startSubscriptionPolling();
+  } else if (res.error) {
+    alert(res.error);
   }
-
-  document.getElementById('pay-card').value = '';
-  document.getElementById('pay-expiry').value = '';
-  document.getElementById('pay-cvv').value = '';
-  document.getElementById('pay-name').value = '';
-  document.getElementById('error-payment').style.display = 'none';
-
-  showScreen('screen-payment');
-  parseEmojis(document.getElementById('screen-payment'));
 }
 
-function initPayment() {
-  document.getElementById('payment-back').addEventListener('click', () => {
-    showScreen('screen-modes');
-  });
-
-  document.getElementById('pay-card').addEventListener('input', function () {
-    let v = this.value.replace(/\D/g, '').substring(0, 16);
-    this.value = v.replace(/(.{4})/g, '$1 ').trim();
-  });
-
-  document.getElementById('pay-expiry').addEventListener('input', function () {
-    let v = this.value.replace(/\D/g, '').substring(0, 4);
-    if (v.length >= 3) v = v.substring(0, 2) + '/' + v.substring(2);
-    this.value = v;
-  });
-
-  document.getElementById('pay-cvv').addEventListener('input', function () {
-    this.value = this.value.replace(/\D/g, '').substring(0, 3);
-  });
-
-  document.getElementById('pay-btn').addEventListener('click', processPayment);
-}
-
-function processPayment() {
-  const card = document.getElementById('pay-card').value.replace(/\s/g, '');
-  const expiry = document.getElementById('pay-expiry').value;
-  const cvv = document.getElementById('pay-cvv').value;
-  const name = document.getElementById('pay-name').value.trim();
-  const errEl = document.getElementById('error-payment');
-
-  errEl.style.display = 'none';
-
-  if (card.length < 16) {
-    errEl.textContent = 'Enter a valid 16-digit card number';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (!/^\d{2}\/\d{2}$/.test(expiry)) {
-    errEl.textContent = 'Enter expiry as MM/YY';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (cvv.length < 3) {
-    errEl.textContent = 'Enter a valid 3-digit CVV';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (!name) {
-    errEl.textContent = 'Enter the cardholder name';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  const payBtn = document.getElementById('pay-btn');
-  const originalText = payBtn.textContent;
-  payBtn.disabled = true;
-  payBtn.innerHTML = '<span class="payment-spinner"></span>Processing...';
-
-  setTimeout(() => {
-    app.subscription = app.pendingPlan;
-    saveUserData();
-
-    const container = document.querySelector('.payment-form');
-    container.innerHTML = '<div class="payment-success"><div class="checkmark">✅</div><div class="success-text">Payment successful!</div></div>';
-    parseEmojis(container);
-
-    setTimeout(() => {
+function startSubscriptionPolling() {
+  let checks = 0;
+  const interval = setInterval(async () => {
+    checks++;
+    const res = await api('/api/me');
+    if (res.user && res.user.subscription !== 'free') {
+      clearInterval(interval);
+      app.subscription = res.user.subscription;
+      saveUserData();
       updateModesScreen();
-      showScreen('screen-modes');
-    }, 1500);
-  }, 2000);
+    }
+    if (checks > 60) clearInterval(interval);
+  }, 5000);
 }
+
+function initPayment() {}
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
+  initVerify();
   initLangSelect();
   initModes();
   initPayment();
@@ -840,21 +813,31 @@ document.addEventListener('DOMContentLoaded', () => {
   initAvatarPicker();
   initAdminChat();
 
-  const savedSession = localStorage.getItem('worldchat_session');
-  if (savedSession) {
-    app.currentUser = savedSession;
-    loadUserData();
-    applyTranslations();
-    if (app.selectedLang && app.myCountry && app.chats.length > 0) {
-      renderSidebar();
-      showScreen('screen-main');
-    } else if (app.selectedLang) {
-      app.countryStep = 'my';
-      initCountrySelect();
-      showScreen('screen-country');
-    } else {
-      showScreen('screen-lang');
-    }
+  const savedToken = localStorage.getItem('worldchat_token');
+  if (savedToken) {
+    app.token = savedToken;
+    api('/api/me').then(res => {
+      if (res.user) {
+        app.currentUser = res.user.email;
+        app.subscription = res.user.subscription;
+        loadUserData();
+        applyTranslations();
+        if (app.selectedLang && app.myCountry && app.chats.length > 0) {
+          renderSidebar();
+          showScreen('screen-main');
+        } else if (app.selectedLang) {
+          app.countryStep = 'my';
+          initCountrySelect();
+          showScreen('screen-country');
+        } else {
+          showScreen('screen-lang');
+        }
+      } else {
+        localStorage.removeItem('worldchat_token');
+        app.token = null;
+        showScreen('screen-auth');
+      }
+    });
   } else {
     showScreen('screen-auth');
   }

@@ -1,6 +1,6 @@
 {
   "name": "worldchat",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "description": "Talk to the world — chat with people from any country",
   "main": "main.js",
   "scripts": {
@@ -19,6 +19,7 @@
     },
     "files": [
       "main.js",
+      "preload.js",
       "index.html",
       "css/**/*",
       "js/**/*",
