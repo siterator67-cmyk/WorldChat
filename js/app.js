@@ -30,10 +30,14 @@ const app = {
 };
 
 async function api(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
-  if (app.token) headers['Authorization'] = 'Bearer ' + app.token;
-  const res = await fetch(API_URL + path, { ...options, headers, body: options.body ? JSON.stringify(options.body) : undefined });
-  return res.json();
+  try {
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (app.token) headers['Authorization'] = 'Bearer ' + app.token;
+    const res = await fetch(API_URL + path, { ...options, headers, body: options.body ? JSON.stringify(options.body) : undefined });
+    return res.json();
+  } catch (e) {
+    return { error: 'Server unavailable. Please try again later.' };
+  }
 }
 
 function showScreen(id) {
