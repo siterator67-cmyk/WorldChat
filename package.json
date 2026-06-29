@@ -29,6 +29,11 @@
       "target": "nsis",
       "icon": "assets/icon.ico"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "siterator67-cmyk",
+      "repo": "WorldChat"
+    },
     "nsis": {
       "oneClick": true,
       "createDesktopShortcut": true,
@@ -40,5 +45,8 @@
     "electron": "^42.5.0",
     "electron-builder": "^26.15.3",
     "sharp": "^0.35.2"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }
