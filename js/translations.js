@@ -407,7 +407,8 @@ function applyTranslations() {
   document.getElementById('auth-password').placeholder = t('minChars6');
   const authBtn = document.getElementById('auth-btn');
   authBtn.textContent = app.authMode === 'register' ? t('createAccount') : t('logIn');
-  document.querySelector('.divider').textContent = t('orContinueWith');
+  const divider = document.querySelector('.divider');
+  if (divider) divider.textContent = t('orContinueWith');
   document.querySelector('#screen-lang .screen-title').textContent = t('chooseLanguage');
   document.querySelector('#screen-lang .screen-subtitle').textContent = t('langSubtitle');
   document.getElementById('country-search').placeholder = t('searchCountries');
