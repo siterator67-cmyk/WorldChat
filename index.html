@@ -164,8 +164,9 @@
             🔒 Photo and voice messages are Premium+ only
           </div>
           <div class="chat-input-bar">
-            <button class="chat-media-btn" title="Send photo (Premium+ only)">📷</button>
-            <button class="chat-media-btn" title="Voice message (Premium+ only)">🎤</button>
+            <button class="chat-media-btn" id="btn-photo" title="Send photo (Premium+ only)">📷</button>
+            <button class="chat-media-btn" id="btn-voice" title="Voice message (Premium+ only)">🎤</button>
+            <input type="file" id="media-input" accept="image/*,video/*" style="display:none;">
             <input type="text" class="chat-text-input" id="chat-input" placeholder="Type a message...">
             <button class="chat-send-btn" id="chat-send">➤</button>
           </div>

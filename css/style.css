@@ -810,3 +810,38 @@ img.emoji {
   color: #4caf50;
   font-weight: 600;
 }
+
+/* ===== Media Messages ===== */
+.msg-media-img {
+  max-width: 260px;
+  max-height: 300px;
+  border-radius: 10px;
+  display: block;
+  cursor: pointer;
+}
+.msg-media-video {
+  max-width: 300px;
+  max-height: 260px;
+  border-radius: 10px;
+  display: block;
+}
+.msg-voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-icon { font-size: 18px; }
+.msg-audio {
+  height: 32px;
+  min-width: 180px;
+}
+.chat-media-btn.recording {
+  background: #e74c3c;
+  border-color: #e74c3c;
+  color: #fff;
+  animation: pulse-rec 1s infinite;
+}
+@keyframes pulse-rec {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(231,76,60,0); }
+}

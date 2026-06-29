@@ -477,17 +477,28 @@ function openChat(chatId) {
   input.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 }
 
-function addMessageToDOM(text, who, sender, isGroup) {
+function addMessageToDOM(text, who, sender, isGroup, mediaType, mediaSrc) {
   const container = document.getElementById('chat-messages');
   const div = document.createElement('div');
   div.className = `msg msg-${who}`;
 
   const nameTag = isGroup && sender ? `<div class="msg-sender">${escapeHtml(sender)}</div>` : '';
+  let content = '';
+
+  if (mediaType === 'image') {
+    content = `<img src="${mediaSrc}" class="msg-media-img" alt="photo">`;
+  } else if (mediaType === 'video') {
+    content = `<video src="${mediaSrc}" class="msg-media-video" controls></video>`;
+  } else if (mediaType === 'voice') {
+    content = `<div class="msg-voice"><span class="voice-icon">🎤</span><audio src="${mediaSrc}" class="msg-audio" controls></audio></div>`;
+  } else {
+    content = escapeHtml(text);
+  }
 
   if (who === 'me') {
-    div.innerHTML = `${nameTag}${escapeHtml(text)}<div class="translate">${t('sentAs')}</div>`;
+    div.innerHTML = `${nameTag}${content}<div class="translate">${t('sentAs')}</div>`;
   } else {
-    div.innerHTML = `${nameTag}${escapeHtml(text)}<div class="translate">${t('translatedShowOriginal')}</div>`;
+    div.innerHTML = `${nameTag}${content}<div class="translate">${t('translatedShowOriginal')}</div>`;
   }
 
   container.appendChild(div);
@@ -625,6 +636,88 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ===== MEDIA & VOICE =====
+function initMedia() {
+  const photoBtn = document.getElementById('btn-photo');
+  const voiceBtn = document.getElementById('btn-voice');
+  const mediaInput = document.getElementById('media-input');
+
+  photoBtn.addEventListener('click', () => {
+    if (app.subscription !== 'premplus') return;
+    if (!app.activeChatId) return;
+    mediaInput.click();
+  });
+
+  mediaInput.addEventListener('change', () => {
+    const file = mediaInput.files[0];
+    if (!file) return;
+    const chat = app.chats.find(c => c.id === app.activeChatId);
+    if (!chat) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target.result;
+      const isVideo = file.type.startsWith('video/');
+      const mediaType = isVideo ? 'video' : 'image';
+      const label = isVideo ? '🎬 Video' : '📷 Photo';
+
+      chat.messages.push({ text: label, who: 'me', sender: 'You', mediaType, mediaSrc: src });
+      chat.lastMessage = label;
+      chat.lastTime = new Date();
+      addMessageToDOM(label, 'me', 'You', chat.isGroup, mediaType, src);
+      renderSidebar();
+      saveUserData();
+    };
+    reader.readAsDataURL(file);
+    mediaInput.value = '';
+  });
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let recording = false;
+
+  voiceBtn.addEventListener('click', () => {
+    if (app.subscription !== 'premplus') return;
+    if (!app.activeChatId) return;
+
+    if (recording) {
+      mediaRecorder.stop();
+      voiceBtn.classList.remove('recording');
+      recording = false;
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      recording = true;
+      voiceBtn.classList.add('recording');
+
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(tr => tr.stop());
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const src = URL.createObjectURL(blob);
+        const chat = app.chats.find(c => c.id === app.activeChatId);
+        if (!chat) return;
+
+        chat.messages.push({ text: '🎤 Voice message', who: 'me', sender: 'You', mediaType: 'voice', mediaSrc: src });
+        chat.lastMessage = '🎤 Voice message';
+        chat.lastTime = new Date();
+        addMessageToDOM('🎤 Voice message', 'me', 'You', chat.isGroup, 'voice', src);
+        renderSidebar();
+      };
+
+      mediaRecorder.start();
+    }).catch(() => {
+      alert('Microphone access denied. Please allow microphone access in your system settings.');
+    });
+  });
+}
+
 // ===== PAYMENT =====
 function openPaymentScreen(plan) {
   app.pendingPlan = plan;
@@ -742,6 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLangSelect();
   initModes();
   initPayment();
+  initMedia();
   initMainScreen();
   initAvatarPicker();
   initAdminChat();
