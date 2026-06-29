@@ -1,5 +1,18 @@
 const API_URL = 'https://worldchat-server.onrender.com';
 
+function saveToken(t) {
+  if (window.electronAPI) window.electronAPI.saveToken(t);
+  else localStorage.setItem('worldchat_token', t);
+}
+function loadToken() {
+  if (window.electronAPI) return window.electronAPI.loadToken();
+  return localStorage.getItem('worldchat_token');
+}
+function removeToken() {
+  if (window.electronAPI) window.electronAPI.removeToken();
+  else localStorage.removeItem('worldchat_token');
+}
+
 const app = {
   currentScreen: 'auth',
   authMode: 'register',
@@ -110,7 +123,7 @@ function saveUserData() {
 }
 function logout() {
   if (app.token) api('/api/logout', { method: 'POST' });
-  localStorage.removeItem('worldchat_token');
+  removeToken();
   localStorage.removeItem('worldchat_session');
   app.token = null;
   app.currentUser = null;
@@ -165,7 +178,7 @@ async function handleAuth() {
     }
     if (res.error) return showError('error-email', res.error);
     app.token = res.token;
-    localStorage.setItem('worldchat_token', res.token);
+    saveToken(res.token);
     app.currentUser = res.user.email;
     app.subscription = res.user.subscription;
     loadUserData();
@@ -202,7 +215,7 @@ function initVerify() {
     if (res.error) return showError('error-verify', res.error);
     if (res.token) {
       app.token = res.token;
-      localStorage.setItem('worldchat_token', res.token);
+      saveToken(res.token);
       app.currentUser = res.user.email;
       app.subscription = res.user.subscription;
       showScreen('screen-lang');
@@ -917,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAvatarPicker();
   initAdminChat();
 
-  const savedToken = localStorage.getItem('worldchat_token');
+  const savedToken = loadToken();
   if (savedToken) {
     app.token = savedToken;
     api('/api/me').then(res => {
@@ -937,7 +950,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showScreen('screen-lang');
         }
       } else {
-        localStorage.removeItem('worldchat_token');
+        removeToken();
         app.token = null;
         showScreen('screen-auth');
       }
