@@ -41,12 +41,6 @@
         <div class="error-msg" id="error-password"></div>
       </div>
       <button class="btn btn-primary" id="auth-btn">Create account</button>
-      <div class="divider">or continue with</div>
-      <div class="social-login">
-        <div class="social-btn">Google</div>
-        <div class="social-btn">Apple</div>
-        <div class="social-btn">Discord</div>
-      </div>
     </div>
   </div>
 
@@ -143,6 +137,7 @@
               <div class="sidebar-avatar-default" id="avatar-default"></div>
               <img src="" class="sidebar-avatar-img" id="avatar-img" style="display:none;" alt="">
               <input type="file" id="avatar-input" accept="image/*" style="display:none;">
+              <div class="avatar-sub-badge" id="avatar-badge" style="display:none;"></div>
             </div>
             <span class="sidebar-username" id="sidebar-username"></span>
           </div>
@@ -245,6 +240,22 @@
       <div class="chat-input-bar">
         <input type="text" class="chat-text-input" id="admin-input" placeholder="Describe your issue...">
         <button class="chat-send-btn" id="admin-send">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avatar Modal -->
+  <div class="avatar-modal" id="avatar-modal" style="display:none;">
+    <div class="avatar-modal-backdrop" id="avatar-modal-backdrop"></div>
+    <div class="avatar-modal-content">
+      <div class="avatar-modal-img-wrap">
+        <div class="avatar-modal-default" id="avatar-modal-default"></div>
+        <img src="" class="avatar-modal-img" id="avatar-modal-img" style="display:none;" alt="">
+      </div>
+      <div class="avatar-modal-name" id="avatar-modal-name"></div>
+      <div class="avatar-modal-buttons">
+        <button class="btn avatar-modal-btn cancel" id="avatar-modal-cancel">Cancel</button>
+        <button class="btn avatar-modal-btn save" id="avatar-modal-change">Change</button>
       </div>
     </div>
   </div>

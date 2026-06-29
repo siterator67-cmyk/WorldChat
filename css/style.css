@@ -389,6 +389,23 @@ img.emoji {
   transition: border-color 0.2s;
 }
 .sidebar-avatar-wrap:hover { border-color: #fff; }
+.sidebar-avatar-wrap.sub-premium { border-color: #ffa500; box-shadow: 0 0 8px rgba(255,165,0,0.4); }
+.sidebar-avatar-wrap.sub-premplus { border-color: #e040fb; box-shadow: 0 0 8px rgba(224,64,251,0.4); }
+.avatar-sub-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 6px;
+  color: #fff;
+  white-space: nowrap;
+  line-height: 1;
+  z-index: 2;
+}
+.avatar-sub-badge.badge-premium { background: #ffa500; }
+.avatar-sub-badge.badge-premplus { background: #e040fb; }
 .sidebar-avatar-default {
   width: 100%;
   height: 100%;
@@ -703,6 +720,87 @@ img.emoji {
   padding: 6px;
   background: #16202d;
 }
+
+/* ===== Avatar Modal ===== */
+.avatar-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-modal-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+}
+.avatar-modal-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+.avatar-modal-img-wrap {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #66c0f4;
+  background: #2a475e;
+}
+.avatar-modal-default {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 72px;
+  font-weight: 700;
+  color: #66c0f4;
+  text-transform: uppercase;
+}
+.avatar-modal-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-modal-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+}
+.avatar-modal-buttons {
+  display: flex;
+  gap: 16px;
+}
+.avatar-modal-btn {
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  width: auto;
+}
+.avatar-modal-btn.cancel {
+  background: #e74c3c;
+  color: #fff;
+}
+.avatar-modal-btn.cancel:hover { filter: brightness(1.15); }
+.avatar-modal-btn.save {
+  background: linear-gradient(135deg, #47bfff, #1a9fff);
+  color: #fff;
+}
+.avatar-modal-btn.save:hover { filter: brightness(1.15); }
 
 /* ===== Payment Screen ===== */
 .payment-container {

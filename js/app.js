@@ -606,7 +606,9 @@ function initMainScreen() {
   });
 
   document.getElementById('btn-write-admin').addEventListener('click', () => {
-    showScreen('screen-admin');
+    const url = 'https://t.me/WorldChatAdmin';
+    if (window.electronAPI) window.electronAPI.openExternal(url);
+    else window.open(url, '_blank');
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
@@ -634,13 +636,65 @@ function updateSidebarUser() {
     defaultEl.style.display = 'flex';
     imgEl.style.display = 'none';
   }
+
+  const wrap = document.getElementById('avatar-wrap');
+  const badge = document.getElementById('avatar-badge');
+  wrap.classList.remove('sub-premium', 'sub-premplus');
+  badge.style.display = 'none';
+  badge.className = 'avatar-sub-badge';
+
+  if (app.subscription === 'premplus') {
+    wrap.classList.add('sub-premplus');
+    badge.classList.add('badge-premplus');
+    badge.textContent = 'Prem+';
+    badge.style.display = 'block';
+  } else if (app.subscription === 'premium') {
+    wrap.classList.add('sub-premium');
+    badge.classList.add('badge-premium');
+    badge.textContent = 'Prem';
+    badge.style.display = 'block';
+  }
 }
 
 function initAvatarPicker() {
   const wrap = document.getElementById('avatar-wrap');
   const input = document.getElementById('avatar-input');
+  const modal = document.getElementById('avatar-modal');
+  const modalDefault = document.getElementById('avatar-modal-default');
+  const modalImg = document.getElementById('avatar-modal-img');
+  const cancelBtn = document.getElementById('avatar-modal-cancel');
+  const changeBtn = document.getElementById('avatar-modal-change');
+  const backdrop = document.getElementById('avatar-modal-backdrop');
 
-  wrap.addEventListener('click', () => input.click());
+  wrap.addEventListener('click', () => {
+    const users = getUsers();
+    const user = users.find(u => u.email === app.currentUser);
+    const savedAvatar = localStorage.getItem('worldchat_avatar_' + app.currentUser);
+    document.getElementById('avatar-modal-name').textContent = user ? user.username : '';
+    if (savedAvatar) {
+      modalDefault.style.display = 'none';
+      modalImg.style.display = 'block';
+      modalImg.src = savedAvatar;
+    } else {
+      modalDefault.textContent = user ? user.username.charAt(0).toUpperCase() : '?';
+      modalDefault.style.display = 'flex';
+      modalImg.style.display = 'none';
+    }
+    modal.style.display = 'flex';
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+
+  backdrop.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+
+  changeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+    input.click();
+  });
 
   input.addEventListener('change', () => {
     const file = input.files[0];
