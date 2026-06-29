@@ -253,9 +253,7 @@ function initModes() {
     card.addEventListener('click', () => {
       const mode = card.dataset.mode;
       if (mode === 'premium' || mode === 'premplus') {
-        app.subscription = mode;
-        saveUserData();
-        updateModesScreen();
+        openPaymentScreen(mode);
         return;
       }
       app.chatMode = mode;
@@ -627,11 +625,123 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ===== PAYMENT =====
+function openPaymentScreen(plan) {
+  app.pendingPlan = plan;
+  const icon = document.getElementById('payment-icon');
+  const name = document.getElementById('payment-plan-name');
+  const amount = document.getElementById('payment-amount');
+  const features = document.getElementById('payment-features');
+  const payBtn = document.getElementById('pay-btn');
+
+  if (plan === 'premium') {
+    icon.textContent = '👑';
+    name.textContent = 'Premium';
+    amount.innerHTML = '$1.00<span>/month</span>';
+    amount.className = 'payment-amount';
+    features.textContent = 'Public chat with everyone from both countries. Text only.';
+    payBtn.textContent = 'Pay $1.00';
+    payBtn.className = 'btn btn-payment';
+  } else {
+    icon.textContent = '💎';
+    name.textContent = 'Premium+';
+    const price = app.subscription === 'premium' ? '$1.99' : '$2.99';
+    amount.innerHTML = price + '<span>/month</span>';
+    amount.className = 'payment-amount pink-price';
+    features.textContent = 'Everything from Premium + photos, videos, voice messages, "Prem+" badge.';
+    payBtn.textContent = 'Pay ' + price;
+    payBtn.className = 'btn btn-payment pink-btn';
+  }
+
+  document.getElementById('pay-card').value = '';
+  document.getElementById('pay-expiry').value = '';
+  document.getElementById('pay-cvv').value = '';
+  document.getElementById('pay-name').value = '';
+  document.getElementById('error-payment').style.display = 'none';
+
+  showScreen('screen-payment');
+  parseEmojis(document.getElementById('screen-payment'));
+}
+
+function initPayment() {
+  document.getElementById('payment-back').addEventListener('click', () => {
+    showScreen('screen-modes');
+  });
+
+  document.getElementById('pay-card').addEventListener('input', function () {
+    let v = this.value.replace(/\D/g, '').substring(0, 16);
+    this.value = v.replace(/(.{4})/g, '$1 ').trim();
+  });
+
+  document.getElementById('pay-expiry').addEventListener('input', function () {
+    let v = this.value.replace(/\D/g, '').substring(0, 4);
+    if (v.length >= 3) v = v.substring(0, 2) + '/' + v.substring(2);
+    this.value = v;
+  });
+
+  document.getElementById('pay-cvv').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').substring(0, 3);
+  });
+
+  document.getElementById('pay-btn').addEventListener('click', processPayment);
+}
+
+function processPayment() {
+  const card = document.getElementById('pay-card').value.replace(/\s/g, '');
+  const expiry = document.getElementById('pay-expiry').value;
+  const cvv = document.getElementById('pay-cvv').value;
+  const name = document.getElementById('pay-name').value.trim();
+  const errEl = document.getElementById('error-payment');
+
+  errEl.style.display = 'none';
+
+  if (card.length < 16) {
+    errEl.textContent = 'Enter a valid 16-digit card number';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!/^\d{2}\/\d{2}$/.test(expiry)) {
+    errEl.textContent = 'Enter expiry as MM/YY';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (cvv.length < 3) {
+    errEl.textContent = 'Enter a valid 3-digit CVV';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!name) {
+    errEl.textContent = 'Enter the cardholder name';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const payBtn = document.getElementById('pay-btn');
+  const originalText = payBtn.textContent;
+  payBtn.disabled = true;
+  payBtn.innerHTML = '<span class="payment-spinner"></span>Processing...';
+
+  setTimeout(() => {
+    app.subscription = app.pendingPlan;
+    saveUserData();
+
+    const container = document.querySelector('.payment-form');
+    container.innerHTML = '<div class="payment-success"><div class="checkmark">✅</div><div class="success-text">Payment successful!</div></div>';
+    parseEmojis(container);
+
+    setTimeout(() => {
+      updateModesScreen();
+      showScreen('screen-modes');
+    }, 1500);
+  }, 2000);
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initLangSelect();
   initModes();
+  initPayment();
   initMainScreen();
   initAvatarPicker();
   initAdminChat();

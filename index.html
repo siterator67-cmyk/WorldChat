@@ -174,6 +174,40 @@
     </div>
   </div>
 
+  <!-- Payment Screen -->
+  <div class="screen" id="screen-payment">
+    <div class="payment-container">
+      <button class="payment-back" id="payment-back">← Back</button>
+      <div class="payment-icon" id="payment-icon">👑</div>
+      <div class="payment-plan-name" id="payment-plan-name">Premium</div>
+      <div class="payment-amount" id="payment-amount">$1.00<span>/month</span></div>
+      <div class="payment-features" id="payment-features"></div>
+      <div class="payment-form">
+        <div class="input-group">
+          <label>Card number</label>
+          <input type="text" id="pay-card" placeholder="1234 5678 9012 3456" maxlength="19">
+        </div>
+        <div class="payment-row">
+          <div class="input-group" style="flex:1;">
+            <label>Expiry</label>
+            <input type="text" id="pay-expiry" placeholder="MM/YY" maxlength="5">
+          </div>
+          <div class="input-group" style="flex:1;">
+            <label>CVV</label>
+            <input type="text" id="pay-cvv" placeholder="123" maxlength="3">
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Cardholder name</label>
+          <input type="text" id="pay-name" placeholder="John Doe">
+        </div>
+        <div class="error-msg" id="error-payment"></div>
+        <button class="btn btn-payment" id="pay-btn">Pay $1.00</button>
+        <div class="payment-secure">🔒 Secure payment · Your data is encrypted</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin Chat Screen -->
   <div class="screen" id="screen-admin">
     <div class="chat-screen-layout">

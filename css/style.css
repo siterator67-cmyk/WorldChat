@@ -703,3 +703,110 @@ img.emoji {
   padding: 6px;
   background: #16202d;
 }
+
+/* ===== Payment Screen ===== */
+.payment-container {
+  width: 420px;
+  max-width: 90vw;
+  background: #16202d;
+  border: 1px solid #2a475e;
+  border-radius: 14px;
+  padding: 32px;
+  position: relative;
+}
+.payment-back {
+  background: none;
+  border: none;
+  color: #8f98a0;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 20px;
+  transition: color 0.2s;
+}
+.payment-back:hover { color: #66c0f4; }
+.payment-icon {
+  text-align: center;
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+.payment-plan-name {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+.payment-amount {
+  text-align: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffa500;
+  margin: 8px 0 16px;
+}
+.payment-amount span {
+  font-size: 14px;
+  font-weight: 400;
+  color: #8f98a0;
+}
+.payment-amount.pink-price { color: #e040fb; }
+.payment-features {
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #8f98a0;
+  line-height: 1.8;
+  text-align: center;
+}
+.payment-form .input-group { margin-bottom: 12px; }
+.payment-row {
+  display: flex;
+  gap: 12px;
+}
+.btn-payment {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, #ffa500, #ff8c00);
+  color: #fff;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.btn-payment:hover { filter: brightness(1.1); }
+.btn-payment:active { transform: scale(0.98); }
+.btn-payment.pink-btn {
+  background: linear-gradient(135deg, #e040fb, #c020db);
+}
+.payment-secure {
+  text-align: center;
+  font-size: 11px;
+  color: #4f6070;
+  margin-top: 12px;
+}
+.payment-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.payment-success {
+  text-align: center;
+  padding: 20px 0;
+}
+.payment-success .checkmark {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+.payment-success .success-text {
+  font-size: 18px;
+  color: #4caf50;
+  font-weight: 600;
+}
