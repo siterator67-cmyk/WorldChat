@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorldChat — Talk to the world</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
+</head>
+<body>
+
+  <!-- Auth Screen -->
+  <div class="screen" id="screen-auth">
+    <div class="logo">
+      <h1>WORLDCHAT</h1>
+      <p>Talk to the world</p>
+    </div>
+    <div class="auth-box">
+      <div class="tabs">
+        <div class="tab active" data-mode="register">Create account</div>
+        <div class="tab" data-mode="login">Log in</div>
+      </div>
+      <div id="register-fields">
+        <div class="input-group">
+          <label>Username</label>
+          <input type="text" id="auth-username" placeholder="Your username">
+          <div class="error-msg" id="error-username"></div>
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="you@gmail.com">
+        <div class="error-msg" id="error-email"></div>
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="auth-password" placeholder="Minimum 6 characters">
+          <button type="button" class="toggle-password" id="toggle-password">👁</button>
+        </div>
+        <div class="error-msg" id="error-password"></div>
+      </div>
+      <button class="btn btn-primary" id="auth-btn">Create account</button>
+      <div class="divider">or continue with</div>
+      <div class="social-login">
+        <div class="social-btn">Google</div>
+        <div class="social-btn">Apple</div>
+        <div class="social-btn">Discord</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Language Select Screen -->
+  <div class="screen" id="screen-lang">
+    <div class="lang-container">
+      <div class="screen-title">Choose your language</div>
+      <div class="screen-subtitle">This will be used for the interface and auto-translation</div>
+      <div class="lang-grid" id="lang-grid"></div>
+    </div>
+  </div>
+
+  <!-- Country Select Screen -->
+  <div class="screen" id="screen-country">
+    <div class="country-container">
+      <div class="step-label" id="country-step-label">Step 1 of 2</div>
+      <div class="screen-title" id="country-title">Select your country</div>
+      <div class="screen-subtitle">Countries are sorted by online users</div>
+      <input type="text" class="search-bar" id="country-search" placeholder="Search countries...">
+      <div class="country-grid" id="country-grid"></div>
+    </div>
+  </div>
+
+  <!-- Chat Mode Select Screen -->
+  <div class="screen" id="screen-modes">
+    <div class="modes-container">
+      <div class="screen-title">Choose chat mode</div>
+      <div class="screen-subtitle" id="modes-subtitle">Chatting with people from another country</div>
+      <div class="subscription-label" id="subscription-label" style="display:none;"></div>
+      <div class="modes-grid">
+        <div class="mode-card" data-mode="1on1">
+          <div class="icon">👤</div>
+          <div class="title">1 on 1</div>
+          <div class="price">Free</div>
+          <div class="desc">Find one person from the selected country</div>
+        </div>
+        <div class="mode-card" data-mode="group">
+          <div class="icon">👥</div>
+          <div class="title">Group of 4</div>
+          <div class="price">Free</div>
+          <div class="desc">2 from your country + 2 from theirs</div>
+        </div>
+        <div class="mode-card premium" data-mode="premium">
+          <div class="icon">👑</div>
+          <div class="title">Premium</div>
+          <div class="price gold">$1.00 / month</div>
+          <div class="desc">Public chat with everyone from both countries. Text only</div>
+        </div>
+        <div class="mode-card public-chat-card" id="public-chat-btn" style="display:none;">
+          <div class="icon">🌐</div>
+          <div class="title">Public chat</div>
+          <div class="price" style="color:#4caf50;">Included</div>
+          <div class="desc">Chat with everyone from both countries</div>
+        </div>
+        <div class="mode-card premplus" data-mode="premplus">
+          <div class="icon">💎</div>
+          <div class="title">Premium+</div>
+          <div class="price pink">$2.99 / month</div>
+          <div class="desc">Everything from Premium + photos, videos, voice messages, "Prem+" badge</div>
+        </div>
+        <div class="premplus-note" id="premplus-note" style="display:none;">
+          Same as public chat — included in your subscription
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Screen (Telegram-style) -->
+  <div class="screen" id="screen-main">
+    <div class="main-layout">
+      <!-- Left sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-user">
+            <div class="sidebar-avatar-wrap" id="avatar-wrap" title="Change avatar">
+              <div class="sidebar-avatar-default" id="avatar-default"></div>
+              <img src="" class="sidebar-avatar-img" id="avatar-img" style="display:none;" alt="">
+              <input type="file" id="avatar-input" accept="image/*" style="display:none;">
+            </div>
+            <span class="sidebar-username" id="sidebar-username"></span>
+          </div>
+          <h2>Chats</h2>
+        </div>
+        <div class="sidebar-chats" id="sidebar-chats"></div>
+        <div class="sidebar-bottom">
+          <button class="btn btn-primary sidebar-btn" id="btn-add-chat">+ Add chat</button>
+          <button class="btn sidebar-btn sidebar-btn-admin" id="btn-write-admin">✉ Write to admin</button>
+          <button class="btn sidebar-btn sidebar-btn-logout" id="btn-logout">⬅ Log out</button>
+        </div>
+      </div>
+      <!-- Right chat area -->
+      <div class="main-chat-area" id="main-chat-area">
+        <div class="main-chat-empty" id="main-chat-empty">
+          <div class="empty-icon">💬</div>
+          <div class="empty-title">Select a chat</div>
+          <div class="empty-subtitle">Or add a new one to start talking</div>
+        </div>
+        <div class="chat-screen-layout" id="chat-panel" style="display:none;">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <span class="flags" id="chat-flags">🇺🇸 ↔ 🇯🇵</span>
+              <span class="partner-name" id="chat-partner-name">Yuki_Tokyo</span>
+              <span class="status">● online</span>
+            </div>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="typing-indicator" id="typing-indicator" style="display:none;">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-label">typing...</span>
+            </div>
+          </div>
+          <div id="chat-footer-note" class="chat-footer-note">
+            🔒 Photo and voice messages are Premium+ only
+          </div>
+          <div class="chat-input-bar">
+            <button class="chat-media-btn" title="Send photo (Premium+ only)">📷</button>
+            <button class="chat-media-btn" title="Voice message (Premium+ only)">🎤</button>
+            <input type="text" class="chat-text-input" id="chat-input" placeholder="Type a message...">
+            <button class="chat-send-btn" id="chat-send">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Chat Screen -->
+  <div class="screen" id="screen-admin">
+    <div class="chat-screen-layout">
+      <div class="chat-header">
+        <div class="chat-header-left">
+          <span class="partner-name">🛡️ WorldChat Admin</span>
+          <span class="status">● online</span>
+        </div>
+        <button class="back-btn" id="admin-back-btn">← Back</button>
+      </div>
+      <div class="chat-messages" id="admin-messages">
+        <div class="msg msg-them">
+          Hi! How can we help you? Describe your issue and we'll get back to you as soon as possible.
+        </div>
+      </div>
+      <div class="chat-input-bar">
+        <input type="text" class="chat-text-input" id="admin-input" placeholder="Describe your issue...">
+        <button class="chat-send-btn" id="admin-send">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/translations.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

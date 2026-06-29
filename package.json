@@ -1,0 +1,44 @@
+{
+  "name": "worldchat",
+  "version": "1.0.0",
+  "description": "Talk to the world — chat with people from any country",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "keywords": [],
+  "author": "WorldChat",
+  "license": "ISC",
+  "type": "commonjs",
+  "build": {
+    "appId": "com.worldchat.app",
+    "productName": "WorldChat",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "css/**/*",
+      "js/**/*",
+      "assets/icon.png",
+      "assets/icon.ico"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WorldChat"
+    }
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
+    "sharp": "^0.35.2"
+  }
+}
