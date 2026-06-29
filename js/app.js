@@ -933,7 +933,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedToken = loadToken();
   if (savedToken) {
     app.token = savedToken;
-    api('/api/me').then(res => {
+    showScreen('screen-auth');
+    const timeout = new Promise((_, reject) => setTimeout(() => reject('timeout'), 10000));
+    Promise.race([api('/api/me'), timeout]).then(res => {
       if (res.user) {
         app.currentUser = res.user.email;
         app.subscription = res.user.subscription;
@@ -954,6 +956,8 @@ document.addEventListener('DOMContentLoaded', () => {
         app.token = null;
         showScreen('screen-auth');
       }
+    }).catch(() => {
+      showScreen('screen-auth');
     });
   } else {
     showScreen('screen-auth');
