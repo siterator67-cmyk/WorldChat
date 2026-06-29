@@ -19,6 +19,8 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'WorldChat <onboarding@resend.dev>'
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
+const ADMIN_EMAILS = ['siterator67@gmail.com'];
+
 let db;
 const DB_PATH = path.join(__dirname, 'worldchat.db');
 
@@ -207,7 +209,7 @@ app.post('/api/verify', (req, res) => {
   res.json({
     success: true,
     token,
-    user: { id: user.id, username: user.username, email: user.email, subscription: user.subscription },
+    user: { id: user.id, username: user.username, email: user.email, subscription: ADMIN_EMAILS.includes(user.email) ? 'premplus' : user.subscription },
   });
 });
 
@@ -274,18 +276,19 @@ app.post('/api/login', (req, res) => {
   res.json({
     success: true,
     token,
-    user: { id: user.id, username: user.username, email: user.email, subscription: user.subscription },
+    user: { id: user.id, username: user.username, email: user.email, subscription: ADMIN_EMAILS.includes(user.email) ? 'premplus' : user.subscription },
   });
 });
 
 // Get current user
 app.get('/api/me', authMiddleware, (req, res) => {
+  const sub = ADMIN_EMAILS.includes(req.user.email) ? 'premplus' : req.user.subscription;
   res.json({
     user: {
       id: req.user.id,
       username: req.user.username,
       email: req.user.email,
-      subscription: req.user.subscription,
+      subscription: sub,
     },
   });
 });
