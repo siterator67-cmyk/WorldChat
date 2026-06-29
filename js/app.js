@@ -354,7 +354,14 @@ function updateModesScreen() {
 
 // ===== MAIN SCREEN =====
 function pickRandomNames(count, exclude) {
-  const allNames = ['Alex_92', 'Yuki_Tokyo', 'Hans_Berlin', 'Maria_SP', 'Kim_Seoul', 'Pierre_Paris', 'Luna_Roma', 'Akira_23', 'Sofia_BA', 'Chen_Wei', 'Leo_NYC', 'Nina_Oslo', 'Ravi_Delhi', 'Mia_Rio', 'Omar_Cairo'];
+  const allNames = [
+    'Alex_92', 'Yuki_Tokyo', 'Hans_Berlin', 'Maria_SP', 'Kim_Seoul',
+    'Pierre_Paris', 'Luna_Roma', 'Akira_23', 'Sofia_BA', 'Chen_Wei',
+    'Leo_NYC', 'Nina_Oslo', 'Ravi_Delhi', 'Mia_Rio', 'Omar_Cairo',
+    'Liam_UK', 'Sakura_JP', 'Marco_IT', 'Anya_RU', 'Jake_AU',
+    'Priya_IN', 'Carlos_MX', 'Emma_SE', 'Ali_TR', 'Zara_NG',
+    'Tomas_CZ', 'Hana_KR', 'Diego_AR', 'Freya_NO', 'Yusuf_EG',
+  ];
   const available = allNames.filter(n => !exclude.includes(n));
   const picked = [];
   while (picked.length < count && available.length > 0) {
@@ -365,15 +372,23 @@ function pickRandomNames(count, exclude) {
 }
 
 function createNewChat() {
-  const chatType = (app.chatMode === 'group' || app.chatMode === '1on1') ? app.chatMode : '1on1';
-  const isGroup = chatType === 'group';
+  const isPublic = app.chatMode === 'public';
+  const isGroup = app.chatMode === 'group';
 
   let members = [];
-  if (isGroup) {
-    const myTeam = pickRandomNames(1, []);
+  if (isPublic) {
+    const myCount = 3 + Math.floor(Math.random() * 3);
+    const theirCount = 4 + Math.floor(Math.random() * 4);
+    const myNames = pickRandomNames(myCount, []);
+    const theirNames = pickRandomNames(theirCount, myNames);
+    myNames.forEach(n => members.push({ name: n, country: app.myCountry, side: 'my' }));
+    theirNames.forEach(n => members.push({ name: n, country: app.theirCountry, side: 'their' }));
+  } else if (isGroup) {
+    const myTeam = pickRandomNames(2, []);
     const theirTeam = pickRandomNames(2, myTeam);
     members = [
       { name: myTeam[0], country: app.myCountry, side: 'my' },
+      { name: myTeam[1], country: app.myCountry, side: 'my' },
       { name: theirTeam[0], country: app.theirCountry, side: 'their' },
       { name: theirTeam[1], country: app.theirCountry, side: 'their' },
     ];
@@ -382,14 +397,23 @@ function createNewChat() {
     members = [{ name, country: app.theirCountry, side: 'their' }];
   }
 
+  let partnerName;
+  if (isPublic) {
+    partnerName = `Public ${app.myCountry.flag}×${app.theirCountry.flag}`;
+  } else if (isGroup) {
+    partnerName = `Group ${app.myCountry.flag}×${app.theirCountry.flag}`;
+  } else {
+    partnerName = members[0].name;
+  }
+
   const chat = {
     id: Date.now(),
     myCountry: app.myCountry,
     theirCountry: app.theirCountry,
     mode: app.chatMode,
-    isGroup,
+    isGroup: isGroup || isPublic,
     members,
-    partnerName: isGroup ? `Group ${app.myCountry.flag}×${app.theirCountry.flag}` : members[0].name,
+    partnerName,
     messages: [],
     lastMessage: '',
     lastTime: new Date(),
@@ -496,11 +520,15 @@ function openChat(chatId) {
 
     if (chat.isGroup) {
       const responders = [...chat.members].sort(() => Math.random() - 0.5);
-      let delay = 1200;
+      const isPublic = chat.mode === 'public';
+      const minReplies = isPublic ? 3 : 2;
+      let delay = 800;
+      let replied = 0;
       responders.forEach(member => {
-        const shouldReply = Math.random() > 0.2;
-        if (!shouldReply) return;
-        delay += 800 + Math.random() * 1500;
+        const chance = isPublic ? 0.5 : 0.7;
+        if (replied >= minReplies && Math.random() > chance) return;
+        delay += 600 + Math.random() * (isPublic ? 2500 : 1500);
+        replied++;
         setTimeout(() => {
           const reply = BOT_REPLIES[Math.floor(Math.random() * BOT_REPLIES.length)];
           chat.messages.push({ text: reply, who: 'them', sender: member.name });
@@ -669,6 +697,28 @@ const BOT_REPLIES = [
   "That's cool! I didn't know that.",
   "How do you say 'hello' in your language?",
   "What's the most popular food in your country?",
+  "Wow, nice! I love learning about different cultures 🌍",
+  "Same here! We should meet up someday 😄",
+  "That's so different from what we have here",
+  "Really? Tell me more!",
+  "Haha that's funny 😂",
+  "I agree with that 100%",
+  "No way! That's amazing",
+  "What time is it there right now?",
+  "Do you have any pets?",
+  "What do you do for fun on weekends?",
+  "I love that! We have something similar",
+  "Have you tried any food from my country?",
+  "That sounds awesome! 🔥",
+  "lol I didn't expect that",
+  "Interesting perspective, thanks for sharing",
+  "What's your favorite movie?",
+  "I want to learn your language someday",
+  "The culture there seems really cool",
+  "How's life treating you? 😊",
+  "That reminds me of a story...",
+  "We should definitely keep in touch!",
+  "You're so lucky to live there!",
 ];
 
 function showTyping() {
