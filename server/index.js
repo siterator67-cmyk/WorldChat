@@ -1,11 +1,9 @@
 const express = require('express');
 const cors = require('cors');
-const initSqlJs = require('sql.js');
-const fs = require('fs');
+const { createClient } = require('@libsql/client');
 const crypto = require('crypto');
 const { Resend } = require('resend');
 const Stripe = require('stripe');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -21,50 +19,27 @@ const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 const ADMIN_EMAILS = ['siterator67@gmail.com'];
 
-let db;
-const DB_PATH = path.join(__dirname, 'worldchat.db');
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL || '',
+  authToken: process.env.TURSO_AUTH_TOKEN || '',
+});
 
-function saveDb() {
-  const data = db.export();
-  fs.writeFileSync(DB_PATH, Buffer.from(data));
+async function dbRun(sql, args = []) {
+  await db.execute({ sql, args });
 }
 
-const dbQuery = {
-  run(sql, params = []) {
-    db.run(sql, params);
-    saveDb();
-  },
-  get(sql, params = []) {
-    const stmt = db.prepare(sql);
-    stmt.bind(params);
-    if (stmt.step()) {
-      const row = stmt.getAsObject();
-      stmt.free();
-      return row;
-    }
-    stmt.free();
-    return null;
-  },
-  all(sql, params = []) {
-    const results = [];
-    const stmt = db.prepare(sql);
-    stmt.bind(params);
-    while (stmt.step()) results.push(stmt.getAsObject());
-    stmt.free();
-    return results;
-  },
-};
+async function dbGet(sql, args = []) {
+  const { rows } = await db.execute({ sql, args });
+  return rows[0] ?? null;
+}
+
+async function dbAll(sql, args = []) {
+  const { rows } = await db.execute({ sql, args });
+  return rows;
+}
 
 async function initDb() {
-  const SQL = await initSqlJs();
-  if (fs.existsSync(DB_PATH)) {
-    const buf = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buf);
-  } else {
-    db = new SQL.Database();
-  }
-
-  db.run(`
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL,
@@ -78,7 +53,7 @@ async function initDb() {
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
-  db.run(`
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -87,7 +62,6 @@ async function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
-  saveDb();
 }
 
 // --- Middleware ---
@@ -115,14 +89,14 @@ function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
-  const session = dbQuery.get('SELECT * FROM sessions WHERE token = ?', [token]);
+  const session = await dbGet('SELECT * FROM sessions WHERE token = ?', [token]);
   if (!session) return res.status(401).json({ error: 'Invalid token' });
 
-  const user = dbQuery.get('SELECT * FROM users WHERE id = ?', [session.user_id]);
+  const user = await dbGet('SELECT * FROM users WHERE id = ?', [session.user_id]);
   if (!user) return res.status(401).json({ error: 'User not found' });
 
   req.user = user;
@@ -142,15 +116,15 @@ app.post('/api/register', async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
-  const existing = dbQuery.get('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
+  const existing = await dbGet('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
   if (existing) {
     return res.status(400).json({ error: 'Account with this email already exists' });
   }
 
   const code = generateCode();
-  const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+  const expiresAt = Date.now() + 10 * 60 * 1000;
 
-  dbQuery.run(
+  await dbRun(
     'INSERT INTO users (username, email, password_hash, verification_code, code_expires_at) VALUES (?, ?, ?, ?, ?)',
     [username, email.toLowerCase(), hashPassword(password), code, expiresAt]
   );
@@ -183,10 +157,10 @@ app.post('/api/register', async (req, res) => {
 });
 
 // Verify email
-app.post('/api/verify', (req, res) => {
+app.post('/api/verify', async (req, res) => {
   const { email, code } = req.body;
 
-  const user = dbQuery.get('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  const user = await dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
   if (!user) return res.status(400).json({ error: 'User not found' });
 
   if (user.email_verified) {
@@ -201,10 +175,10 @@ app.post('/api/verify', (req, res) => {
     return res.status(400).json({ error: 'Code expired. Please register again' });
   }
 
-  dbQuery.run('UPDATE users SET email_verified = 1, verification_code = NULL WHERE id = ?', [user.id]);
+  await dbRun('UPDATE users SET email_verified = 1, verification_code = NULL WHERE id = ?', [user.id]);
 
   const token = generateToken();
-  dbQuery.run('INSERT INTO sessions (user_id, token) VALUES (?, ?)', [user.id, token]);
+  await dbRun('INSERT INTO sessions (user_id, token) VALUES (?, ?)', [user.id, token]);
 
   res.json({
     success: true,
@@ -217,7 +191,7 @@ app.post('/api/verify', (req, res) => {
 app.post('/api/resend-code', async (req, res) => {
   const { email } = req.body;
 
-  const user = dbQuery.get('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  const user = await dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
   if (!user) return res.status(400).json({ error: 'User not found' });
 
   if (user.email_verified) {
@@ -226,7 +200,7 @@ app.post('/api/resend-code', async (req, res) => {
 
   const code = generateCode();
   const expiresAt = Date.now() + 10 * 60 * 1000;
-  dbQuery.run('UPDATE users SET verification_code = ?, code_expires_at = ? WHERE id = ?', [code, expiresAt, user.id]);
+  await dbRun('UPDATE users SET verification_code = ?, code_expires_at = ? WHERE id = ?', [code, expiresAt, user.id]);
 
   if (resend) {
     try {
@@ -256,10 +230,10 @@ app.post('/api/resend-code', async (req, res) => {
 });
 
 // Login
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { email, password } = req.body;
 
-  const user = dbQuery.get('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  const user = await dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
   if (!user) return res.status(400).json({ error: 'User not found' });
 
   if (!verifyPassword(password, user.password_hash)) {
@@ -271,7 +245,7 @@ app.post('/api/login', (req, res) => {
   }
 
   const token = generateToken();
-  dbQuery.run('INSERT INTO sessions (user_id, token) VALUES (?, ?)', [user.id, token]);
+  await dbRun('INSERT INTO sessions (user_id, token) VALUES (?, ?)', [user.id, token]);
 
   res.json({
     success: true,
@@ -294,9 +268,9 @@ app.get('/api/me', authMiddleware, (req, res) => {
 });
 
 // Logout
-app.post('/api/logout', authMiddleware, (req, res) => {
+app.post('/api/logout', authMiddleware, async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
-  dbQuery.run('DELETE FROM sessions WHERE token = ?', [token]);
+  await dbRun('DELETE FROM sessions WHERE token = ?', [token]);
   res.json({ success: true });
 });
 
@@ -306,7 +280,7 @@ app.post('/api/logout', authMiddleware, (req, res) => {
 app.post('/api/create-checkout', authMiddleware, async (req, res) => {
   if (!stripe) return res.status(500).json({ error: 'Stripe not configured' });
 
-  const { plan } = req.body; // 'premium' or 'premplus'
+  const { plan } = req.body;
   const user = req.user;
 
   const prices = {
@@ -323,7 +297,7 @@ app.post('/api/create-checkout', authMiddleware, async (req, res) => {
       metadata: { userId: user.id.toString() },
     });
     customerId = customer.id;
-    dbQuery.run('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [customerId, user.id]);
+    await dbRun('UPDATE users SET stripe_customer_id = ? WHERE id = ?', [customerId, user.id]);
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -366,16 +340,15 @@ app.post('/webhook/stripe', async (req, res) => {
     const session = event.data.object;
     const userId = session.metadata?.userId;
     const plan = session.metadata?.plan;
-
     if (userId && plan) {
-      dbQuery.run('UPDATE users SET subscription = ? WHERE id = ?', [plan, parseInt(userId)]);
+      await dbRun('UPDATE users SET subscription = ? WHERE id = ?', [plan, parseInt(userId)]);
     }
   }
 
   if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
     const customerId = subscription.customer;
-    dbQuery.run('UPDATE users SET subscription = ? WHERE stripe_customer_id = ?', ['free', customerId]);
+    await dbRun('UPDATE users SET subscription = ? WHERE stripe_customer_id = ?', ['free', customerId]);
   }
 
   res.json({ received: true });
@@ -413,4 +386,7 @@ initDb().then(() => {
     if (!RESEND_API_KEY) console.log('⚠ RESEND_API_KEY not set — emails will be logged to console');
     if (!STRIPE_SECRET_KEY) console.log('⚠ STRIPE_SECRET_KEY not set — payments disabled');
   });
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
 });

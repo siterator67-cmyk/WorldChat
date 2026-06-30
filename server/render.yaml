@@ -6,6 +6,10 @@ services:
     startCommand: node index.js
     plan: free
     envVars:
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: STRIPE_SECRET_KEY
