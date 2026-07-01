@@ -29,6 +29,10 @@ const EN = {
   adminWelcome:"Hi! How can we help you? Describe your issue and we'll get back to you as soon as possible.",
   adminReply:'Thanks for reaching out! Our team will review your message and get back to you shortly.',
   describeIssue:'Describe your issue...',back:'← Back',
+  globalChat:'Global chat',globalChatDesc:'One worldwide room — premium users from all countries',
+  showTranslation:'Show translation',slowDown:'Slow down — wait {s}s before sending again',
+  msgBlockedSpam:'⚠ Message blocked — looks like spam',msgBlockedLink:'⚠ Links are not allowed here',
+  mutedForSpam:'🔇 You are muted for {s}s for spamming',
 };
 
 const TRANSLATIONS = { en: EN,
@@ -62,6 +66,10 @@ ru: {
   sentAs:'Отправлено как: [переведено на язык собеседника]',typing:'печатает...',
   adminName:'🛡️ Админ WorldChat',adminWelcome:'Привет! Чем можем помочь? Опишите проблему.',
   adminReply:'Спасибо! Наша команда скоро ответит.',describeIssue:'Опишите проблему...',back:'← Назад',
+  globalChat:'Глобальный чат',globalChatDesc:'Одна комната на весь мир — премиум-пользователи из всех стран',
+  showTranslation:'Показать перевод',slowDown:'Не так быстро — подождите {s} сек перед отправкой',
+  msgBlockedSpam:'⚠ Сообщение заблокировано — похоже на спам',msgBlockedLink:'⚠ Ссылки здесь запрещены',
+  mutedForSpam:'🔇 Вы замьючены на {s} сек за спам',
 },
 
 es: {
@@ -91,6 +99,10 @@ es: {
   sentAs:'Enviado como: [traducido al idioma del compañero]',typing:'escribiendo...',
   adminName:'🛡️ Admin WorldChat',adminWelcome:'¡Hola! ¿En qué podemos ayudarte?',
   adminReply:'¡Gracias! Nuestro equipo te responderá pronto.',describeIssue:'Describe tu problema...',back:'← Volver',
+  globalChat:'Chat global',globalChatDesc:'Una sala mundial — usuarios premium de todos los países',
+  showTranslation:'Mostrar traducción',slowDown:'Más despacio — espera {s}s antes de enviar de nuevo',
+  msgBlockedSpam:'⚠ Mensaje bloqueado — parece spam',msgBlockedLink:'⚠ Los enlaces no están permitidos aquí',
+  mutedForSpam:'🔇 Silenciado por {s}s por spam',
 },
 
 fr: {
@@ -120,6 +132,10 @@ fr: {
   sentAs:'Envoyé comme: [traduit dans la langue du partenaire]',typing:'écrit...',
   adminName:'🛡️ Admin WorldChat',adminWelcome:'Bonjour! Comment pouvons-nous vous aider?',
   adminReply:'Merci! Notre équipe vous répondra bientôt.',describeIssue:'Décrivez votre problème...',back:'← Retour',
+  globalChat:'Chat global',globalChatDesc:'Une salle mondiale — utilisateurs premium de tous les pays',
+  showTranslation:'Voir la traduction',slowDown:'Doucement — attendez {s}s avant de renvoyer',
+  msgBlockedSpam:'⚠ Message bloqué — ressemble à du spam',msgBlockedLink:'⚠ Les liens ne sont pas autorisés ici',
+  mutedForSpam:'🔇 Vous êtes muet pendant {s}s pour spam',
 },
 
 de: {
@@ -149,6 +165,10 @@ de: {
   sentAs:'Gesendet als: [in die Sprache des Partners übersetzt]',typing:'schreibt...',
   adminName:'🛡️ WorldChat Admin',adminWelcome:'Hallo! Wie können wir helfen?',
   adminReply:'Danke! Unser Team antwortet bald.',describeIssue:'Beschreibe dein Problem...',back:'← Zurück',
+  globalChat:'Globaler Chat',globalChatDesc:'Ein weltweiter Raum — Premium-Nutzer aus allen Ländern',
+  showTranslation:'Übersetzung anzeigen',slowDown:'Langsamer — warte {s}s vor der nächsten Nachricht',
+  msgBlockedSpam:'⚠ Nachricht blockiert — sieht nach Spam aus',msgBlockedLink:'⚠ Links sind hier nicht erlaubt',
+  mutedForSpam:'🔇 Du bist für {s}s wegen Spam stummgeschaltet',
 },
 
 ja: {
@@ -178,6 +198,10 @@ ja: {
   sentAs:'送信内容: [パートナーの言語に翻訳]',typing:'入力中...',
   adminName:'🛡️ WorldChat管理者',adminWelcome:'こんにちは！お困りですか？問題をご説明ください。',
   adminReply:'ありがとうございます！すぐにお返事いたします。',describeIssue:'問題を説明...',back:'← 戻る',
+  globalChat:'グローバルチャット',globalChatDesc:'世界共通のルーム — 全ての国のプレミアムユーザー',
+  showTranslation:'翻訳を表示',slowDown:'ゆっくり — 次の送信まで{s}秒お待ちください',
+  msgBlockedSpam:'⚠ メッセージがブロックされました — スパムの可能性',msgBlockedLink:'⚠ ここではリンクは禁止です',
+  mutedForSpam:'🔇 スパムのため{s}秒間ミュートされました',
 },
 
 ko: {
@@ -207,6 +231,10 @@ ko: {
   sentAs:'보낸 내용: [상대 언어로 번역됨]',typing:'입력 중...',
   adminName:'🛡️ WorldChat 관리자',adminWelcome:'안녕하세요! 도움이 필요하시면 문제를 설명해주세요.',
   adminReply:'감사합니다! 곧 답변 드리겠습니다.',describeIssue:'문제 설명...',back:'← 뒤로',
+  globalChat:'글로벌 채팅',globalChatDesc:'전 세계 하나의 방 — 모든 나라의 프리미엄 사용자',
+  showTranslation:'번역 보기',slowDown:'천천히 — {s}초 후에 다시 보내세요',
+  msgBlockedSpam:'⚠ 메시지 차단됨 — 스팸으로 보임',msgBlockedLink:'⚠ 여기서는 링크가 허용되지 않습니다',
+  mutedForSpam:'🔇 스팸으로 {s}초 동안 음소거되었습니다',
 },
 
 zh: {
@@ -236,6 +264,10 @@ zh: {
   sentAs:'发送为: [已翻译为对方语言]',typing:'正在输入...',
   adminName:'🛡️ WorldChat管理员',adminWelcome:'你好！需要帮助请描述问题。',
   adminReply:'谢谢！我们会尽快回复。',describeIssue:'描述你的问题...',back:'← 返回',
+  globalChat:'全球聊天',globalChatDesc:'一个全球房间 — 来自所有国家的高级用户',
+  showTranslation:'显示翻译',slowDown:'慢一点 — 请等待{s}秒后再发送',
+  msgBlockedSpam:'⚠ 消息被拦截 — 疑似垃圾信息',msgBlockedLink:'⚠ 此处不允许发送链接',
+  mutedForSpam:'🔇 因刷屏被禁言{s}秒',
 },
 
 pt: {
@@ -265,6 +297,10 @@ pt: {
   sentAs:'Enviado como: [traduzido para o idioma do parceiro]',typing:'digitando...',
   adminName:'🛡️ Admin WorldChat',adminWelcome:'Olá! Como podemos ajudar?',
   adminReply:'Obrigado! Nossa equipe responderá em breve.',describeIssue:'Descreva seu problema...',back:'← Voltar',
+  globalChat:'Chat global',globalChatDesc:'Uma sala mundial — usuários premium de todos os países',
+  showTranslation:'Mostrar tradução',slowDown:'Devagar — espere {s}s antes de enviar de novo',
+  msgBlockedSpam:'⚠ Mensagem bloqueada — parece spam',msgBlockedLink:'⚠ Links não são permitidos aqui',
+  mutedForSpam:'🔇 Silenciado por {s}s por spam',
 },
 
 it: {
@@ -294,6 +330,10 @@ it: {
   sentAs:'Inviato come: [tradotto nella lingua del partner]',typing:'sta scrivendo...',
   adminName:'🛡️ Admin WorldChat',adminWelcome:'Ciao! Come possiamo aiutarti?',
   adminReply:'Grazie! Il nostro team risponderà presto.',describeIssue:'Descrivi il problema...',back:'← Indietro',
+  globalChat:'Chat globale',globalChatDesc:'Una stanza mondiale — utenti premium da tutti i paesi',
+  showTranslation:'Mostra traduzione',slowDown:'Piano — aspetta {s}s prima di inviare di nuovo',
+  msgBlockedSpam:'⚠ Messaggio bloccato — sembra spam',msgBlockedLink:'⚠ I link non sono ammessi qui',
+  mutedForSpam:'🔇 Sei silenziato per {s}s per spam',
 },
 
 tr: {
@@ -323,6 +363,10 @@ tr: {
   sentAs:'Gönderildi: [partnerin diline çevrildi]',typing:'yazıyor...',
   adminName:'🛡️ WorldChat Yönetici',adminWelcome:'Merhaba! Size nasıl yardımcı olabiliriz?',
   adminReply:'Teşekkürler! Ekibimiz yakında yanıtlayacak.',describeIssue:'Sorununuzu açıklayın...',back:'← Geri',
+  globalChat:'Küresel sohbet',globalChatDesc:'Dünya çapında tek oda — tüm ülkelerden premium kullanıcılar',
+  showTranslation:'Çeviriyi göster',slowDown:'Yavaş — tekrar göndermeden önce {s}sn bekleyin',
+  msgBlockedSpam:'⚠ Mesaj engellendi — spam gibi görünüyor',msgBlockedLink:'⚠ Burada bağlantılara izin verilmiyor',
+  mutedForSpam:'🔇 Spam nedeniyle {s}sn susturuldunuz',
 },
 
 ar: {
@@ -352,6 +396,10 @@ ar: {
   sentAs:'أُرسل كـ: [مترجم للغة الشريك]',typing:'يكتب...',
   adminName:'🛡️ مشرف WorldChat',adminWelcome:'مرحباً! كيف يمكننا مساعدتك؟',
   adminReply:'شكراً! سيرد فريقنا قريباً.',describeIssue:'صف مشكلتك...',back:'← رجوع',
+  globalChat:'دردشة عالمية',globalChatDesc:'غرفة واحدة للعالم كله — مستخدمو بريميوم من جميع الدول',
+  showTranslation:'عرض الترجمة',slowDown:'تمهل — انتظر {s} ثانية قبل الإرسال مجدداً',
+  msgBlockedSpam:'⚠ تم حظر الرسالة — تبدو كرسالة مزعجة',msgBlockedLink:'⚠ الروابط غير مسموحة هنا',
+  mutedForSpam:'🔇 تم كتمك لمدة {s} ثانية بسبب الإزعاج',
 },
 
 hi: {
@@ -381,6 +429,10 @@ hi: {
   sentAs:'भेजा गया: [साथी की भाषा में अनुवादित]',typing:'लिख रहा है...',
   adminName:'🛡️ WorldChat एडमिन',adminWelcome:'नमस्ते! हम कैसे मदद कर सकते हैं?',
   adminReply:'धन्यवाद! हमारी टीम जल्द जवाब देगी।',describeIssue:'अपनी समस्या बताएं...',back:'← वापस',
+  globalChat:'ग्लोबल चैट',globalChatDesc:'पूरी दुनिया का एक कमरा — सभी देशों के प्रीमियम उपयोगकर्ता',
+  showTranslation:'अनुवाद दिखाएं',slowDown:'धीरे — दोबारा भेजने से पहले {s} सेकंड रुकें',
+  msgBlockedSpam:'⚠ संदेश ब्लॉक किया गया — स्पैम जैसा लगता है',msgBlockedLink:'⚠ यहां लिंक की अनुमति नहीं है',
+  mutedForSpam:'🔇 स्पैम के लिए {s} सेकंड म्यूट किया गया',
 },
 
 };
@@ -434,6 +486,12 @@ function applyTranslations() {
   cardPP.querySelector('.desc').textContent = t('premPlusDesc');
   cardPublic.querySelector('.title').textContent = t('publicChat');
   cardPublic.querySelector('.desc').textContent = t('publicChatEveryoneDesc');
+  const cardGlobal = document.getElementById('global-chat-btn');
+  if (cardGlobal) {
+    cardGlobal.querySelector('.title').textContent = t('globalChat');
+    cardGlobal.querySelector('.price').textContent = t('included');
+    cardGlobal.querySelector('.desc').textContent = t('globalChatDesc');
+  }
   document.getElementById('premplus-note').textContent = t('premPlusNote');
 
   document.querySelector('.sidebar-header h2').textContent = t('chats');

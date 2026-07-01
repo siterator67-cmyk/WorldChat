@@ -52,22 +52,38 @@ function connectSocket() {
   if (socket) { socket.disconnect(); socket = null; }
   if (!app.token) return;
 
-  socket = io(API_URL, { auth: { token: app.token } });
+  socket = io(API_URL, { auth: { token: app.token, lang: app.selectedLang || 'en' } });
 
   socket.on('matched', (data) => {
     clearTimeout(app.searchTimeout);
     createRealChat(data);
   });
 
-  socket.on('receive_message', ({ roomId, text, sender }) => {
+  socket.on('receive_message', ({ roomId, text, sender, original, translated }) => {
     const chat = app.chats.find(c => c.roomId === roomId);
     if (!chat) return;
-    chat.messages.push({ text, who: 'them', sender });
+    chat.messages.push({ text, who: 'them', sender, original: translated ? original : null });
     chat.lastMessage = sender + ': ' + text;
     chat.lastTime = new Date();
     saveUserData();
-    if (app.activeChatId === chat.id) addMessageToDOM(text, 'them', sender, chat.isGroup);
+    if (app.activeChatId === chat.id) addMessageToDOM(text, 'them', sender, chat.isGroup, null, null, translated ? original : null);
     renderSidebar();
+  });
+
+  socket.on('cooldown', ({ remaining }) => {
+    addSystemMessage(t('slowDown').replace('{s}', remaining));
+  });
+
+  socket.on('spam_warning', ({ reason }) => {
+    addSystemMessage(reason === 'link' ? t('msgBlockedLink') : t('msgBlockedSpam'));
+  });
+
+  socket.on('muted', ({ remaining }) => {
+    addSystemMessage(t('mutedForSpam').replace('{s}', remaining));
+  });
+
+  socket.on('error_event', ({ message }) => {
+    addSystemMessage(message);
   });
 
   socket.on('partner_typing', ({ roomId }) => {
@@ -307,6 +323,7 @@ function initLangSelect() {
       app.selectedLang = lang.code;
       saveUserData();
       applyTranslations();
+      if (socket && socket.connected) socket.emit('set_lang', lang.code);
       setTimeout(() => {
         app.addingChat = true;
         app.countryStep = 'my';
@@ -400,6 +417,15 @@ function initModes() {
       createNewChat();
     }
   });
+
+  document.getElementById('global-chat-btn').addEventListener('click', () => {
+    app.chatMode = 'global';
+    if (socket && socket.connected) {
+      socket.emit('join_global');
+    } else {
+      alert('No connection to server. Please try again later.');
+    }
+  });
 }
 
 function updateModesScreen() {
@@ -407,6 +433,7 @@ function updateModesScreen() {
   const premCard = document.querySelector('.mode-card.premium');
   const premplusCard = document.querySelector('.mode-card.premplus');
   const publicBtn = document.getElementById('public-chat-btn');
+  const globalBtn = document.getElementById('global-chat-btn');
   const premplusNote = document.getElementById('premplus-note');
   const premplusPrice = premplusCard.querySelector('.price');
 
@@ -416,12 +443,14 @@ function updateModesScreen() {
     premCard.style.display = 'none';
     premplusCard.style.display = 'none';
     publicBtn.style.display = 'block';
+    globalBtn.style.display = 'block';
     premplusNote.style.display = 'block';
   } else if (app.subscription === 'premium') {
     subLabel.innerHTML = '👑 Active subscription: <strong>Premium</strong>';
     subLabel.style.display = 'block';
     premCard.style.display = 'none';
     publicBtn.style.display = 'block';
+    globalBtn.style.display = 'block';
     premplusCard.style.display = '';
     premplusPrice.textContent = '$1.99 / month';
     premplusNote.style.display = 'none';
@@ -431,6 +460,7 @@ function updateModesScreen() {
     premplusCard.style.display = '';
     premplusPrice.textContent = '$2.99 / month';
     publicBtn.style.display = 'none';
+    globalBtn.style.display = 'none';
     premplusNote.style.display = 'none';
   }
 }
@@ -470,13 +500,29 @@ function joinQueue(myCountry, theirCountry, mode) {
 }
 
 function createRealChat({ roomId, mode, partners, myCountry, theirCountry }) {
-  const isGroup = mode === 'group' || mode === 'public';
+  if (mode === 'global') {
+    const existing = app.chats.find(c => c.mode === 'global');
+    if (existing) {
+      existing.roomId = roomId;
+      existing.isReal = true;
+      app.activeChatId = existing.id;
+      saveUserData();
+      renderSidebar();
+      openChat(existing.id);
+      showScreen('screen-main');
+      return;
+    }
+  }
+
+  const isGroup = mode === 'group' || mode === 'public' || mode === 'global';
   const members = partners.map(p => ({ name: p.username, country: p.country, side: 'their' }));
-  const partnerName = mode === 'public'
-    ? `Public ${myCountry.flag}×${theirCountry.flag}`
-    : isGroup
-      ? `Group ${myCountry.flag}×${theirCountry.flag}`
-      : (partners[0]?.username || 'Unknown');
+  const partnerName = mode === 'global'
+    ? `${t('globalChat')} 🌍`
+    : mode === 'public'
+      ? `Public ${myCountry.flag}×${theirCountry.flag}`
+      : isGroup
+        ? `Group ${myCountry.flag}×${theirCountry.flag}`
+        : (partners[0]?.username || 'Unknown');
 
   const chat = {
     id: Date.now(),
@@ -617,9 +663,11 @@ function openChat(chatId) {
   const partnerName = document.getElementById('chat-partner-name');
   headerFlags.textContent = `${chat.myCountry.flag} ↔ ${chat.theirCountry.flag}`;
   if (chat.isGroup) {
-    partnerName.textContent = chat.members.map(m => m.name).join(', ') + ' & You';
+    partnerName.textContent = chat.members.length
+      ? chat.members.map(m => m.name).join(', ') + ' & You'
+      : chat.partnerName;
   } else {
-    partnerName.textContent = chat.members[0].name;
+    partnerName.textContent = chat.members[0] ? chat.members[0].name : chat.partnerName;
   }
 
   const isPremPlus = app.subscription === 'premplus';
@@ -640,7 +688,7 @@ function openChat(chatId) {
   messagesContainer.innerHTML = `<div class="typing-indicator" id="typing-indicator" style="display:none;"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-label">${t('typing')}</span></div>`;
 
   chat.messages.forEach(msg => {
-    addMessageToDOM(msg.text, msg.who, msg.sender, chat.isGroup);
+    addMessageToDOM(msg.text, msg.who, msg.sender, chat.isGroup, msg.mediaType, msg.mediaSrc, msg.original);
   });
 
   parseEmojis(panel);
@@ -715,7 +763,7 @@ function openChat(chatId) {
   input.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 }
 
-function addMessageToDOM(text, who, sender, isGroup, mediaType, mediaSrc) {
+function addMessageToDOM(text, who, sender, isGroup, mediaType, mediaSrc, original) {
   const container = document.getElementById('chat-messages');
   const div = document.createElement('div');
   div.className = `msg msg-${who}`;
@@ -730,13 +778,25 @@ function addMessageToDOM(text, who, sender, isGroup, mediaType, mediaSrc) {
   } else if (mediaType === 'voice') {
     content = `<div class="msg-voice"><span class="voice-icon">🎤</span><audio src="${mediaSrc}" class="msg-audio" controls></audio></div>`;
   } else {
-    content = escapeHtml(text);
+    content = `<span class="msg-text">${escapeHtml(text)}</span>`;
   }
 
   if (who === 'me') {
     div.innerHTML = `${nameTag}${content}<div class="translate">${t('sentAs')}</div>`;
   } else {
     div.innerHTML = `${nameTag}${content}<div class="translate">${t('translatedShowOriginal')}</div>`;
+    if (original && original !== text) {
+      const textEl = div.querySelector('.msg-text');
+      const toggleEl = div.querySelector('.translate');
+      let showingOriginal = false;
+      toggleEl.style.cursor = 'pointer';
+      toggleEl.style.textDecoration = 'underline';
+      toggleEl.onclick = () => {
+        showingOriginal = !showingOriginal;
+        textEl.textContent = showingOriginal ? original : text;
+        toggleEl.textContent = showingOriginal ? t('showTranslation') : t('translatedShowOriginal');
+      };
+    }
   }
 
   container.appendChild(div);

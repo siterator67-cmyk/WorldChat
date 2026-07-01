@@ -17,6 +17,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const FROM_EMAIL = process.env.FROM_EMAIL || 'WorldChat <onboarding@resend.dev>';
+const DEEPL_API_KEY = process.env.DEEPL_API_KEY || '';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
@@ -450,9 +451,128 @@ app.get('/payment-cancel.html', (req, res) => {
   `);
 });
 
+// --- DeepL translation ---
+const DEEPL_URL = DEEPL_API_KEY.endsWith(':fx')
+  ? 'https://api-free.deepl.com/v2/translate'
+  : 'https://api.deepl.com/v2/translate';
+
+// app language code -> DeepL target_lang (unsupported langs like hi/bn/th fall through untranslated)
+const DEEPL_TARGETS = {
+  en: 'EN-US', ru: 'RU', es: 'ES', fr: 'FR', de: 'DE', ja: 'JA', ko: 'KO',
+  zh: 'ZH', pt: 'PT-BR', it: 'IT', tr: 'TR', ar: 'AR', pl: 'PL', nl: 'NL',
+  uk: 'UK', sv: 'SV', no: 'NB', da: 'DA', fi: 'FI', cs: 'CS', ro: 'RO',
+  hu: 'HU', el: 'EL', id: 'ID', sk: 'SK', bg: 'BG',
+};
+
+const translationCache = new Map(); // "TARGET::text" -> translated text
+const TRANSLATION_CACHE_MAX = 5000;
+
+async function translateText(text, targetAppLang) {
+  if (!DEEPL_API_KEY) return null;
+  const target = DEEPL_TARGETS[targetAppLang];
+  if (!target) return null;
+
+  const cacheKey = `${target}::${text}`;
+  if (translationCache.has(cacheKey)) return translationCache.get(cacheKey);
+
+  try {
+    const res = await fetch(DEEPL_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `DeepL-Auth-Key ${DEEPL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text: [text], target_lang: target }),
+    });
+    if (!res.ok) {
+      console.error('DeepL API error:', res.status);
+      return null;
+    }
+    const data = await res.json();
+    const translated = data.translations?.[0]?.text || null;
+    if (translated) {
+      if (translationCache.size >= TRANSLATION_CACHE_MAX) translationCache.clear();
+      translationCache.set(cacheKey, translated);
+    }
+    return translated;
+  } catch (e) {
+    console.error('DeepL error:', e.message);
+    return null;
+  }
+}
+
+// --- Anti-spam ---
+const spamState = new Map(); // userId -> { strikes, mutedUntil, lastStrikeAt, lastTexts: [{text, at}] }
+const STRIKE_RESET_MS = 5 * 60 * 1000;
+const URL_RE = /(https?:\/\/|www\.|\b[a-z0-9-]{2,}\.(com|net|org|ru|io|me|gg|xyz|info|site|online|shop|store|club|top|link|app|dev)(\/|\b))/i;
+
+function getSpamState(userId) {
+  let st = spamState.get(userId);
+  if (!st) {
+    st = { strikes: 0, mutedUntil: 0, lastStrikeAt: 0, lastTexts: [] };
+    spamState.set(userId, st);
+  }
+  return st;
+}
+
+// Returns { blocked: false } or { blocked: true, reason, remaining }
+function checkSpam(userId, text, isSharedRoom) {
+  const now = Date.now();
+  const st = getSpamState(userId);
+
+  if (now < st.mutedUntil) {
+    return { blocked: true, reason: 'muted', remaining: Math.ceil((st.mutedUntil - now) / 1000) };
+  }
+
+  if (st.strikes > 0 && now - st.lastStrikeAt > STRIKE_RESET_MS) st.strikes = 0;
+
+  const strike = (reason) => {
+    st.strikes++;
+    st.lastStrikeAt = now;
+    if (st.strikes >= 3) {
+      st.mutedUntil = now + (st.strikes >= 5 ? 5 * 60 * 1000 : 60 * 1000);
+    }
+    const remaining = st.mutedUntil > now ? Math.ceil((st.mutedUntil - now) / 1000) : 0;
+    return { blocked: true, reason, remaining };
+  };
+
+  // links are not allowed in public/global rooms
+  if (isSharedRoom && URL_RE.test(text)) return strike('link');
+
+  // same message repeated 3+ times within 30s
+  const norm = text.toLowerCase().replace(/\s+/g, ' ').trim();
+  st.lastTexts = st.lastTexts.filter(e => now - e.at < 30000);
+  const dupCount = st.lastTexts.filter(e => e.text === norm).length;
+  st.lastTexts.push({ text: norm, at: now });
+  if (dupCount >= 2) return strike('duplicate');
+
+  // one character repeated 15+ times
+  if (/(.)\1{14,}/.test(text)) return strike('flood');
+
+  // >70% caps on messages with 20+ letters
+  const letters = text.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, '');
+  if (letters.length >= 20) {
+    const caps = letters.replace(/[^A-ZА-ЯЁ]/g, '').length;
+    if (caps / letters.length > 0.7) return strike('caps');
+  }
+
+  return { blocked: false };
+}
+
+// drop idle spam state to keep memory bounded
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, st] of spamState) {
+    const lastActivity = Math.max(st.lastStrikeAt, st.mutedUntil, st.lastTexts[st.lastTexts.length - 1]?.at || 0);
+    if (now - lastActivity > 30 * 60 * 1000) spamState.delete(userId);
+  }
+}, 10 * 60 * 1000);
+
 // --- Socket.io matchmaking ---
+const MAX_ROOM_SIZE = 30;
 const queues = new Map();
-const publicRooms = new Map(); // queueKey -> roomId
+const publicRooms = new Map(); // queueKey -> [roomId, ...]
+const globalRooms = [];        // shared pool for global chat
 
 function getQueueKey(c1, c2, mode) {
   const sorted = [c1.name, c2.name].sort();
@@ -468,6 +588,8 @@ io.use(async (socket, next) => {
     const user = await dbGet('SELECT * FROM users WHERE id = ?', [session.user_id]);
     if (!user) return next(new Error('No user'));
     socket.user = user;
+    const lang = socket.handshake.auth.lang;
+    socket.lang = (typeof lang === 'string' && /^[a-z]{2,3}$/.test(lang)) ? lang : 'en';
     next();
   } catch(e) { next(new Error('Auth error')); }
 });
@@ -503,6 +625,8 @@ io.on('connection', (socket) => {
         s.join(roomId);
         s.currentRoom = roomId;
         s.currentQueue = null;
+        s.isGlobal = false;
+        s.currentPublicKey = null;
         const partners = group
           .filter(e => e.socket.id !== s.id)
           .map(e => ({ username: e.socket.user.username, country: e.myCountry }));
@@ -511,9 +635,64 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('send_message', ({ roomId, text }) => {
-    if (!roomId || !text || text.length > 1000 || socket.currentRoom !== roomId) return;
-    socket.to(roomId).emit('receive_message', { roomId, text, sender: socket.user.username });
+  socket.lastMessageAt = 0;
+
+  socket.on('set_lang', (lang) => {
+    if (typeof lang === 'string' && /^[a-z]{2,3}$/.test(lang)) socket.lang = lang;
+  });
+
+  socket.on('send_message', async ({ roomId, text }) => {
+    if (!roomId || typeof text !== 'string' || socket.currentRoom !== roomId) return;
+    text = text.trim();
+    if (!text || text.length > 1000) return;
+
+    const now = Date.now();
+    if (now - socket.lastMessageAt < 5000) {
+      const remaining = Math.ceil((5000 - (now - socket.lastMessageAt)) / 1000);
+      socket.emit('cooldown', { remaining });
+      return;
+    }
+
+    const isSharedRoom = !!socket.isGlobal || !!socket.currentPublicKey;
+    const verdict = checkSpam(socket.user.id, text, isSharedRoom);
+    if (verdict.blocked) {
+      if (verdict.reason === 'muted') {
+        socket.emit('muted', { remaining: verdict.remaining });
+      } else {
+        socket.emit('spam_warning', { reason: verdict.reason, remaining: verdict.remaining });
+      }
+      return;
+    }
+
+    socket.lastMessageAt = now;
+
+    const room = io.sockets.adapter.rooms.get(roomId);
+    if (!room) return;
+
+    // group recipients by language so each language is translated once
+    const senderLang = socket.lang || 'en';
+    const byLang = new Map();
+    for (const sid of room) {
+      if (sid === socket.id) continue;
+      const s = io.sockets.sockets.get(sid);
+      if (!s) continue;
+      const lang = s.lang || 'en';
+      if (!byLang.has(lang)) byLang.set(lang, []);
+      byLang.get(lang).push(s);
+    }
+
+    await Promise.all([...byLang].map(async ([lang, sockets]) => {
+      let translated = null;
+      if (lang !== senderLang) translated = await translateText(text, lang);
+      const payload = {
+        roomId,
+        text: translated || text,
+        original: translated ? text : null,
+        translated: !!translated,
+        sender: socket.user.username,
+      };
+      sockets.forEach(s => s.emit('receive_message', payload));
+    }));
   });
 
   socket.on('typing', ({ roomId }) => {
@@ -528,16 +707,33 @@ io.on('connection', (socket) => {
 
   socket.on('join_public', ({ myCountry, theirCountry }) => {
     const key = getQueueKey(myCountry, theirCountry, 'public');
-    if (!publicRooms.has(key)) {
-      publicRooms.set(key, crypto.randomBytes(8).toString('hex'));
-    }
-    const roomId = publicRooms.get(key);
+    if (!publicRooms.has(key)) publicRooms.set(key, []);
+    const rooms = publicRooms.get(key);
+    let roomId = rooms.find(rid => (io.sockets.adapter.rooms.get(rid)?.size || 0) < MAX_ROOM_SIZE);
+    if (!roomId) { roomId = crypto.randomBytes(8).toString('hex'); rooms.push(roomId); }
     socket.join(roomId);
     socket.currentRoom = roomId;
     socket.currentPublicKey = key;
-    const count = io.sockets.adapter.rooms.get(roomId)?.size || 1;
-    socket.to(roomId).emit('public_user_joined', { username: socket.user.username, count });
+    socket.isGlobal = false;
+    socket.to(roomId).emit('public_user_joined', { username: socket.user.username, roomId });
     socket.emit('matched', { roomId, mode: 'public', partners: [], myCountry, theirCountry });
+  });
+
+  socket.on('join_global', () => {
+    const sub = socket.user.subscription;
+    const isAdmin = ADMIN_EMAILS.includes(socket.user.email);
+    if (sub !== 'premium' && sub !== 'premplus' && !isAdmin) {
+      socket.emit('error_event', { message: 'Premium subscription required' });
+      return;
+    }
+    let roomId = globalRooms.find(rid => (io.sockets.adapter.rooms.get(rid)?.size || 0) < MAX_ROOM_SIZE);
+    if (!roomId) { roomId = crypto.randomBytes(8).toString('hex'); globalRooms.push(roomId); }
+    socket.join(roomId);
+    socket.currentRoom = roomId;
+    socket.isGlobal = true;
+    socket.currentPublicKey = null;
+    socket.to(roomId).emit('public_user_joined', { username: socket.user.username, roomId });
+    socket.emit('matched', { roomId, mode: 'global', partners: [], myCountry: { name: 'Global', flag: '🌍' }, theirCountry: { name: 'Global', flag: '🌍' } });
   });
 
   socket.on('leave_queue', () => leaveQueue());
