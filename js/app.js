@@ -13,6 +13,8 @@ function removeToken() {
   else localStorage.removeItem('worldchat_token');
 }
 
+let socket = null;
+
 const app = {
   currentScreen: 'auth',
   authMode: 'register',
@@ -44,6 +46,44 @@ function startKeepAlive() {
   setInterval(() => {
     if (app.token) api('/api/ping').catch(() => {});
   }, 14 * 60 * 1000);
+}
+
+function connectSocket() {
+  if (socket) { socket.disconnect(); socket = null; }
+  if (!app.token) return;
+
+  socket = io(API_URL, { auth: { token: app.token } });
+
+  socket.on('matched', (data) => {
+    clearTimeout(app.searchTimeout);
+    createRealChat(data);
+  });
+
+  socket.on('receive_message', ({ roomId, text, sender }) => {
+    const chat = app.chats.find(c => c.roomId === roomId);
+    if (!chat) return;
+    chat.messages.push({ text, who: 'them', sender });
+    chat.lastMessage = sender + ': ' + text;
+    chat.lastTime = new Date();
+    saveUserData();
+    if (app.activeChatId === chat.id) addMessageToDOM(text, 'them', sender, chat.isGroup);
+    renderSidebar();
+  });
+
+  socket.on('partner_typing', ({ roomId }) => {
+    const chat = app.chats.find(c => c.roomId === roomId);
+    if (chat && app.activeChatId === chat.id) showTyping();
+  });
+
+  socket.on('partner_stop_typing', ({ roomId }) => {
+    const chat = app.chats.find(c => c.roomId === roomId);
+    if (chat && app.activeChatId === chat.id) hideTyping();
+  });
+
+  socket.on('partner_disconnected', ({ roomId, sender }) => {
+    const chat = app.chats.find(c => c.roomId === roomId);
+    if (chat && app.activeChatId === chat.id) addSystemMessage(`${sender} has left the chat`);
+  });
 }
 
 function showScreen(id) {
@@ -135,6 +175,7 @@ function saveUserData() {
 }
 function logout() {
   if (app.token) api('/api/logout', { method: 'POST' });
+  if (socket) { socket.disconnect(); socket = null; }
   removeToken();
   localStorage.removeItem('worldchat_session');
   app.token = null;
@@ -195,6 +236,7 @@ async function handleAuth() {
     app.subscription = res.user.subscription;
     loadUserData();
     startKeepAlive();
+    connectSocket();
     if (app.selectedLang && app.myCountry && app.chats.length > 0) {
       renderSidebar();
       showScreen('screen-main');
@@ -232,6 +274,7 @@ function initVerify() {
       app.currentUser = res.user.email;
       app.subscription = res.user.subscription;
       startKeepAlive();
+      connectSocket();
       showScreen('screen-lang');
     }
   });
@@ -336,7 +379,11 @@ function initModes() {
         return;
       }
       app.chatMode = mode;
-      createNewChat();
+      if (socket && socket.connected && (mode === '1on1' || mode === 'group')) {
+        joinQueue(app.myCountry, app.theirCountry, mode);
+      } else {
+        createNewChat();
+      }
     });
   });
 
@@ -396,6 +443,53 @@ function pickRandomNames(count, exclude) {
     picked.push(available.splice(i, 1)[0]);
   }
   return picked;
+}
+
+function joinQueue(myCountry, theirCountry, mode) {
+  if (!socket || !socket.connected) {
+    createNewChat();
+    return;
+  }
+  showScreen('screen-searching');
+  document.getElementById('searching-subtitle').textContent =
+    `Looking for someone from ${theirCountry.name} ${theirCountry.flag}`;
+  socket.emit('join_queue', { myCountry, theirCountry, mode });
+  app.searchTimeout = setTimeout(() => {
+    socket.emit('leave_queue');
+    createNewChat();
+  }, 15000);
+}
+
+function createRealChat({ roomId, mode, partners, myCountry, theirCountry }) {
+  const isGroup = mode === 'group';
+  const members = partners.map(p => ({ name: p.username, country: p.country, side: 'their' }));
+  const partnerName = isGroup
+    ? `Group ${myCountry.flag}×${theirCountry.flag}`
+    : (partners[0]?.username || 'Unknown');
+
+  const chat = {
+    id: Date.now(),
+    roomId,
+    isReal: true,
+    myCountry, theirCountry, mode, isGroup, members, partnerName,
+    messages: [], lastMessage: '', lastTime: new Date(),
+  };
+  app.chats.push(chat);
+  app.activeChatId = chat.id;
+  saveUserData();
+  renderSidebar();
+  openChat(chat.id);
+  showScreen('screen-main');
+}
+
+function addSystemMessage(text) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.style.cssText = 'text-align:center;color:#8f98a0;font-size:13px;margin:8px 0;padding:4px;';
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
 }
 
 function createNewChat() {
@@ -534,6 +628,15 @@ function openChat(chatId) {
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
 
+  let typingTimer = null;
+  input.oninput = () => {
+    if (chat.isReal && socket) {
+      socket.emit('typing', { roomId: chat.roomId });
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => socket.emit('stop_typing', { roomId: chat.roomId }), 1500);
+    }
+  };
+
   const sendMessage = () => {
     const text = input.value.trim();
     if (!text) return;
@@ -544,6 +647,14 @@ function openChat(chatId) {
     renderSidebar();
     saveUserData();
     input.value = '';
+    if (chat.isReal) {
+      if (socket) {
+        clearTimeout(typingTimer);
+        socket.emit('stop_typing', { roomId: chat.roomId });
+        socket.emit('send_message', { roomId: chat.roomId, text });
+      }
+      return;
+    }
 
     if (chat.isGroup) {
       const responders = [...chat.members].sort(() => Math.random() - 0.5);
@@ -932,6 +1043,15 @@ function startSubscriptionPolling() {
 
 function initPayment() {}
 
+// ===== SEARCHING =====
+function initSearching() {
+  document.getElementById('cancel-search-btn').addEventListener('click', () => {
+    clearTimeout(app.searchTimeout);
+    if (socket) socket.emit('leave_queue');
+    showScreen('screen-modes');
+  });
+}
+
 // ===== FORGOT PASSWORD =====
 function initForgot() {
   document.getElementById('forgot-link').addEventListener('click', () => {
@@ -990,6 +1110,7 @@ function initForgot() {
     app.subscription = res.user.subscription;
     loadUserData();
     startKeepAlive();
+    connectSocket();
     showScreen('screen-lang');
   });
 }
@@ -999,6 +1120,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initVerify();
   initForgot();
+  initSearching();
   initLangSelect();
   initModes();
   initPayment();
@@ -1030,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         app.subscription = res.user.subscription;
         loadUserData();
         startKeepAlive();
+        connectSocket();
         applyTranslations();
         if (app.selectedLang && app.myCountry && app.chats.length > 0) {
           renderSidebar();

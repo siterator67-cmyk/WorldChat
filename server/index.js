@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server: SocketServer } = require('socket.io');
 const cors = require('cors');
 const { createClient } = require('@libsql/client');
 const crypto = require('crypto');
@@ -6,6 +8,8 @@ const { Resend } = require('resend');
 const Stripe = require('stripe');
 
 const app = express();
+const httpServer = http.createServer(app);
+const io = new SocketServer(httpServer, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 const PORT = process.env.PORT || 4000;
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
@@ -446,9 +450,97 @@ app.get('/payment-cancel.html', (req, res) => {
   `);
 });
 
+// --- Socket.io matchmaking ---
+const queues = new Map();
+
+function getQueueKey(c1, c2, mode) {
+  const sorted = [c1.name, c2.name].sort();
+  return `${sorted[0]}__${sorted[1]}__${mode}`;
+}
+
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    if (!token) return next(new Error('No token'));
+    const session = await dbGet('SELECT * FROM sessions WHERE token = ?', [token]);
+    if (!session) return next(new Error('Invalid token'));
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [session.user_id]);
+    if (!user) return next(new Error('No user'));
+    socket.user = user;
+    next();
+  } catch(e) { next(new Error('Auth error')); }
+});
+
+io.on('connection', (socket) => {
+  socket.currentQueue = null;
+  socket.currentRoom = null;
+
+  function leaveQueue() {
+    if (!socket.currentQueue) return;
+    const q = queues.get(socket.currentQueue);
+    if (q) {
+      const idx = q.findIndex(e => e.socket.id === socket.id);
+      if (idx !== -1) q.splice(idx, 1);
+      if (q.length === 0) queues.delete(socket.currentQueue);
+    }
+    socket.currentQueue = null;
+  }
+
+  socket.on('join_queue', ({ myCountry, theirCountry, mode }) => {
+    leaveQueue();
+    const key = getQueueKey(myCountry, theirCountry, mode);
+    socket.currentQueue = key;
+    if (!queues.has(key)) queues.set(key, []);
+    queues.get(key).push({ socket, myCountry, theirCountry });
+
+    const needed = mode === 'group' ? 4 : 2;
+    const queue = queues.get(key);
+    if (queue.length >= needed) {
+      const group = queue.splice(0, needed);
+      const roomId = crypto.randomBytes(8).toString('hex');
+      group.forEach(({ socket: s, myCountry: mc, theirCountry: tc }) => {
+        s.join(roomId);
+        s.currentRoom = roomId;
+        s.currentQueue = null;
+        const partners = group
+          .filter(e => e.socket.id !== s.id)
+          .map(e => ({ username: e.socket.user.username, country: e.myCountry }));
+        s.emit('matched', { roomId, mode, partners, myCountry: mc, theirCountry: tc });
+      });
+    }
+  });
+
+  socket.on('send_message', ({ roomId, text }) => {
+    if (!roomId || !text || text.length > 1000 || socket.currentRoom !== roomId) return;
+    socket.to(roomId).emit('receive_message', { roomId, text, sender: socket.user.username });
+  });
+
+  socket.on('typing', ({ roomId }) => {
+    if (socket.currentRoom !== roomId) return;
+    socket.to(roomId).emit('partner_typing', { roomId, sender: socket.user.username });
+  });
+
+  socket.on('stop_typing', ({ roomId }) => {
+    if (socket.currentRoom !== roomId) return;
+    socket.to(roomId).emit('partner_stop_typing', { roomId });
+  });
+
+  socket.on('leave_queue', () => leaveQueue());
+
+  socket.on('disconnect', () => {
+    leaveQueue();
+    if (socket.currentRoom) {
+      socket.to(socket.currentRoom).emit('partner_disconnected', {
+        roomId: socket.currentRoom,
+        sender: socket.user.username,
+      });
+    }
+  });
+});
+
 // --- Start ---
 initDb().then(() => {
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`WorldChat server running on port ${PORT}`);
     if (!RESEND_API_KEY) console.log('⚠ RESEND_API_KEY not set — emails will be logged to console');
     if (!STRIPE_SECRET_KEY) console.log('⚠ STRIPE_SECRET_KEY not set — payments disabled');

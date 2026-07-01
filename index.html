@@ -305,6 +305,18 @@
     </div>
   </div>
 
+  <!-- Searching Screen -->
+  <div class="screen" id="screen-searching">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;">
+      <div style="font-size:48px;">🔍</div>
+      <div class="screen-title">Finding a match...</div>
+      <div class="screen-subtitle" id="searching-subtitle">Looking for someone to chat with</div>
+      <div style="width:44px;height:44px;border:3px solid #2a3f5f;border-top:3px solid #66c0f4;border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <button class="btn" id="cancel-search-btn" style="background:#2a3f5f;color:#c7d5e0;margin-top:8px;">Cancel</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="js/data.js"></script>
   <script src="js/translations.js"></script>
   <script src="js/app.js"></script>
