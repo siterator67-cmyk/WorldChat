@@ -84,6 +84,11 @@ function connectSocket() {
     const chat = app.chats.find(c => c.roomId === roomId);
     if (chat && app.activeChatId === chat.id) addSystemMessage(`${sender} has left the chat`);
   });
+
+  socket.on('public_user_joined', ({ username, roomId }) => {
+    const chat = app.chats.find(c => c.roomId === roomId);
+    if (chat && app.activeChatId === chat.id) addSystemMessage(`${username} joined the chat`);
+  });
 }
 
 function showScreen(id) {
@@ -389,7 +394,11 @@ function initModes() {
 
   document.getElementById('public-chat-btn').addEventListener('click', () => {
     app.chatMode = 'public';
-    createNewChat();
+    if (socket && socket.connected) {
+      joinPublic(app.myCountry, app.theirCountry);
+    } else {
+      createNewChat();
+    }
   });
 }
 
@@ -461,11 +470,13 @@ function joinQueue(myCountry, theirCountry, mode) {
 }
 
 function createRealChat({ roomId, mode, partners, myCountry, theirCountry }) {
-  const isGroup = mode === 'group';
+  const isGroup = mode === 'group' || mode === 'public';
   const members = partners.map(p => ({ name: p.username, country: p.country, side: 'their' }));
-  const partnerName = isGroup
-    ? `Group ${myCountry.flag}×${theirCountry.flag}`
-    : (partners[0]?.username || 'Unknown');
+  const partnerName = mode === 'public'
+    ? `Public ${myCountry.flag}×${theirCountry.flag}`
+    : isGroup
+      ? `Group ${myCountry.flag}×${theirCountry.flag}`
+      : (partners[0]?.username || 'Unknown');
 
   const chat = {
     id: Date.now(),
@@ -480,6 +491,15 @@ function createRealChat({ roomId, mode, partners, myCountry, theirCountry }) {
   renderSidebar();
   openChat(chat.id);
   showScreen('screen-main');
+}
+
+function joinPublic(myCountry, theirCountry) {
+  if (!socket || !socket.connected) {
+    app.chatMode = 'public';
+    createNewChat();
+    return;
+  }
+  socket.emit('join_public', { myCountry, theirCountry });
 }
 
 function addSystemMessage(text) {

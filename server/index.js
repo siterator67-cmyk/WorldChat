@@ -452,6 +452,7 @@ app.get('/payment-cancel.html', (req, res) => {
 
 // --- Socket.io matchmaking ---
 const queues = new Map();
+const publicRooms = new Map(); // queueKey -> roomId
 
 function getQueueKey(c1, c2, mode) {
   const sorted = [c1.name, c2.name].sort();
@@ -525,6 +526,20 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('partner_stop_typing', { roomId });
   });
 
+  socket.on('join_public', ({ myCountry, theirCountry }) => {
+    const key = getQueueKey(myCountry, theirCountry, 'public');
+    if (!publicRooms.has(key)) {
+      publicRooms.set(key, crypto.randomBytes(8).toString('hex'));
+    }
+    const roomId = publicRooms.get(key);
+    socket.join(roomId);
+    socket.currentRoom = roomId;
+    socket.currentPublicKey = key;
+    const count = io.sockets.adapter.rooms.get(roomId)?.size || 1;
+    socket.to(roomId).emit('public_user_joined', { username: socket.user.username, count });
+    socket.emit('matched', { roomId, mode: 'public', partners: [], myCountry, theirCountry });
+  });
+
   socket.on('leave_queue', () => leaveQueue());
 
   socket.on('disconnect', () => {
@@ -534,6 +549,12 @@ io.on('connection', (socket) => {
         roomId: socket.currentRoom,
         sender: socket.user.username,
       });
+      if (socket.currentPublicKey) {
+        setTimeout(() => {
+          const room = io.sockets.adapter.rooms.get(socket.currentRoom);
+          if (!room || room.size === 0) publicRooms.delete(socket.currentPublicKey);
+        }, 200);
+      }
     }
   });
 });
