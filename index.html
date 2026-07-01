@@ -9,6 +9,16 @@
 </head>
 <body>
 
+  <!-- Connecting Screen -->
+  <div class="screen" id="screen-connecting">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <div class="logo"><h1>WORLDCHAT</h1></div>
+      <div style="width:44px;height:44px;border:3px solid #2a3f5f;border-top:3px solid #66c0f4;border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <div style="color:#8f98a0;font-size:15px;" id="connecting-msg">Connecting...</div>
+      <button class="btn btn-primary" id="connecting-retry" style="display:none;margin-top:8px;">Retry</button>
+    </div>
+  </div>
+
   <!-- Auth Screen -->
   <div class="screen" id="screen-auth">
     <div class="logo">

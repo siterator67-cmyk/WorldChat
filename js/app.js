@@ -1007,11 +1007,23 @@ document.addEventListener('DOMContentLoaded', () => {
   initAvatarPicker();
   initAdminChat();
 
+  document.getElementById('connecting-retry').addEventListener('click', () => {
+    document.getElementById('connecting-msg').textContent = 'Connecting...';
+    document.getElementById('connecting-retry').style.display = 'none';
+    tryAutoLogin();
+  });
+
   const savedToken = loadToken();
   if (savedToken) {
     app.token = savedToken;
+    tryAutoLogin();
+  } else {
     showScreen('screen-auth');
-    const timeout = new Promise((_, reject) => setTimeout(() => reject('timeout'), 10000));
+  }
+
+  function tryAutoLogin() {
+    showScreen('screen-connecting');
+    const timeout = new Promise((_, reject) => setTimeout(() => reject('timeout'), 60000));
     Promise.race([api('/api/me'), timeout]).then(res => {
       if (res.user) {
         app.currentUser = res.user.email;
@@ -1035,9 +1047,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen('screen-auth');
       }
     }).catch(() => {
-      showScreen('screen-auth');
+      document.getElementById('connecting-msg').textContent = 'Server is starting up, please wait...';
+      document.getElementById('connecting-retry').style.display = 'block';
     });
-  } else {
-    showScreen('screen-auth');
   }
 });
