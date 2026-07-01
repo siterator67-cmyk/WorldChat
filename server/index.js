@@ -62,6 +62,8 @@ async function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
+  try { await db.execute(`ALTER TABLE users ADD COLUMN reset_code TEXT`); } catch(e) {}
+  try { await db.execute(`ALTER TABLE users ADD COLUMN reset_code_expires_at INTEGER`); } catch(e) {}
 }
 
 // --- Middleware ---
@@ -104,6 +106,71 @@ async function authMiddleware(req, res, next) {
 }
 
 // --- Routes ---
+
+// Ping (keep-alive)
+app.get('/api/ping', (req, res) => res.json({ ok: true }));
+
+// Forgot password — send code
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  const user = await dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  if (!user) return res.status(400).json({ error: 'No account with this email' });
+
+  const code = generateCode();
+  const expiresAt = Date.now() + 10 * 60 * 1000;
+  await dbRun('UPDATE users SET reset_code = ?, reset_code_expires_at = ? WHERE id = ?', [code, expiresAt, user.id]);
+
+  if (resend) {
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email.toLowerCase(),
+        subject: 'WorldChat — Password reset code',
+        html: `
+          <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:20px;">
+            <h2 style="color:#66c0f4;">WorldChat</h2>
+            <p>Your password reset code:</p>
+            <div style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#66c0f4;padding:16px;background:#1b2838;border-radius:8px;text-align:center;">
+              ${code}
+            </div>
+            <p style="color:#888;font-size:12px;margin-top:16px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
+          </div>
+        `,
+      });
+    } catch (e) {
+      console.error('Email send error:', e);
+    }
+  } else {
+    console.log(`[DEV] Reset code for ${email}: ${code}`);
+  }
+
+  res.json({ success: true });
+});
+
+// Reset password — verify code + set new password
+app.post('/api/reset-password', async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) return res.status(400).json({ error: 'All fields are required' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+  const user = await dbGet('SELECT * FROM users WHERE email = ?', [email.toLowerCase()]);
+  if (!user) return res.status(400).json({ error: 'User not found' });
+  if (user.reset_code !== code) return res.status(400).json({ error: 'Invalid code' });
+  if (Date.now() > user.reset_code_expires_at) return res.status(400).json({ error: 'Code expired. Please try again' });
+
+  await dbRun('UPDATE users SET password_hash = ?, reset_code = NULL, reset_code_expires_at = NULL WHERE id = ?', [hashPassword(newPassword), user.id]);
+
+  const token = generateToken();
+  await dbRun('INSERT INTO sessions (user_id, token) VALUES (?, ?)', [user.id, token]);
+
+  res.json({
+    success: true,
+    token,
+    user: { id: user.id, username: user.username, email: user.email, subscription: ADMIN_EMAILS.includes(user.email) ? 'premplus' : user.subscription },
+  });
+});
 
 // Register
 app.post('/api/register', async (req, res) => {

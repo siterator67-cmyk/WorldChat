@@ -41,6 +41,9 @@
         <div class="error-msg" id="error-password"></div>
       </div>
       <button class="btn btn-primary" id="auth-btn">Create account</button>
+      <div id="forgot-link-wrap" style="margin-top:10px;text-align:center;display:none;">
+        <button class="btn-link" id="forgot-link" style="background:none;border:none;color:#66c0f4;font-size:13px;cursor:pointer;">Forgot password?</button>
+      </div>
     </div>
   </div>
 
@@ -58,6 +61,38 @@
       <div style="margin-top:14px;">
         <span style="color:#8f98a0;font-size:13px;">Didn't get it?</span>
         <button class="btn-link" id="resend-btn" style="background:none;border:none;color:#66c0f4;font-size:13px;cursor:pointer;">Resend code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forgot Password Screen -->
+  <div class="screen" id="screen-forgot">
+    <div class="auth-box" style="text-align:center;">
+      <div style="font-size:48px;margin-bottom:12px;">🔑</div>
+      <div class="screen-title" style="margin-bottom:4px;">Reset password</div>
+      <div class="screen-subtitle" id="forgot-subtitle">Enter your email to receive a reset code</div>
+      <div id="forgot-step-email">
+        <div class="input-group" style="margin-top:20px;text-align:left;">
+          <label>Email</label>
+          <input type="email" id="forgot-email" placeholder="you@gmail.com">
+          <div class="error-msg" id="error-forgot-email"></div>
+        </div>
+        <button class="btn btn-primary" id="forgot-send-btn">Send reset code</button>
+      </div>
+      <div id="forgot-step-reset" style="display:none;">
+        <div class="input-group" style="margin-top:20px;">
+          <input type="text" id="forgot-code" placeholder="Enter 6-digit code" maxlength="6" style="text-align:center;font-size:24px;letter-spacing:8px;">
+          <div class="error-msg" id="error-forgot-code"></div>
+        </div>
+        <div class="input-group" style="text-align:left;">
+          <label>New password</label>
+          <input type="password" id="forgot-newpass" placeholder="Minimum 6 characters">
+          <div class="error-msg" id="error-forgot-pass"></div>
+        </div>
+        <button class="btn btn-primary" id="forgot-reset-btn">Reset password</button>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn-link" id="forgot-back-btn" style="background:none;border:none;color:#66c0f4;font-size:13px;cursor:pointer;">← Back to login</button>
       </div>
     </div>
   </div>

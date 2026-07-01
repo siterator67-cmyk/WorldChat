@@ -40,6 +40,12 @@ async function api(path, options = {}) {
   }
 }
 
+function startKeepAlive() {
+  setInterval(() => {
+    if (app.token) api('/api/ping').catch(() => {});
+  }, 14 * 60 * 1000);
+}
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const screen = document.getElementById(id);
@@ -62,6 +68,7 @@ function initAuth() {
   const registerFields = document.getElementById('register-fields');
   const authBtn = document.getElementById('auth-btn');
 
+  const forgotWrap = document.getElementById('forgot-link-wrap');
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       tabs.forEach(t => t.classList.remove('active'));
@@ -69,6 +76,7 @@ function initAuth() {
       app.authMode = tab.dataset.mode;
       registerFields.style.display = app.authMode === 'register' ? 'block' : 'none';
       authBtn.textContent = app.authMode === 'register' ? 'Create account' : 'Log in';
+      forgotWrap.style.display = app.authMode === 'login' ? 'block' : 'none';
       clearErrors();
     });
   });
@@ -186,6 +194,7 @@ async function handleAuth() {
     app.currentUser = res.user.email;
     app.subscription = res.user.subscription;
     loadUserData();
+    startKeepAlive();
     if (app.selectedLang && app.myCountry && app.chats.length > 0) {
       renderSidebar();
       showScreen('screen-main');
@@ -222,6 +231,7 @@ function initVerify() {
       saveToken(res.token);
       app.currentUser = res.user.email;
       app.subscription = res.user.subscription;
+      startKeepAlive();
       showScreen('screen-lang');
     }
   });
@@ -922,10 +932,73 @@ function startSubscriptionPolling() {
 
 function initPayment() {}
 
+// ===== FORGOT PASSWORD =====
+function initForgot() {
+  document.getElementById('forgot-link').addEventListener('click', () => {
+    document.getElementById('forgot-step-email').style.display = 'block';
+    document.getElementById('forgot-step-reset').style.display = 'none';
+    document.getElementById('forgot-subtitle').textContent = 'Enter your email to receive a reset code';
+    document.getElementById('forgot-email').value = '';
+    document.getElementById('forgot-code').value = '';
+    document.getElementById('forgot-newpass').value = '';
+    clearErrors();
+    showScreen('screen-forgot');
+  });
+
+  document.getElementById('forgot-back-btn').addEventListener('click', () => {
+    document.querySelectorAll('.auth-box .tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.tab[data-mode="login"]').classList.add('active');
+    app.authMode = 'login';
+    document.getElementById('register-fields').style.display = 'none';
+    document.getElementById('auth-btn').textContent = 'Log in';
+    document.getElementById('forgot-link-wrap').style.display = 'block';
+    clearErrors();
+    showScreen('screen-auth');
+  });
+
+  document.getElementById('forgot-send-btn').addEventListener('click', async () => {
+    const email = document.getElementById('forgot-email').value.trim();
+    if (!email) return showError('error-forgot-email', 'Enter your email');
+    const btn = document.getElementById('forgot-send-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    const res = await api('/api/forgot-password', { method: 'POST', body: { email } });
+    btn.disabled = false;
+    btn.textContent = 'Send reset code';
+    if (res.error) return showError('error-forgot-email', res.error);
+    app.pendingEmail = email.toLowerCase();
+    document.getElementById('forgot-subtitle').textContent = 'We sent a code to ' + email;
+    document.getElementById('forgot-step-email').style.display = 'none';
+    document.getElementById('forgot-step-reset').style.display = 'block';
+  });
+
+  document.getElementById('forgot-reset-btn').addEventListener('click', async () => {
+    const code = document.getElementById('forgot-code').value.trim();
+    const newPassword = document.getElementById('forgot-newpass').value.trim();
+    if (code.length !== 6) return showError('error-forgot-code', 'Enter the 6-digit code');
+    if (newPassword.length < 6) return showError('error-forgot-pass', 'Minimum 6 characters');
+    const btn = document.getElementById('forgot-reset-btn');
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+    const res = await api('/api/reset-password', { method: 'POST', body: { email: app.pendingEmail, code, newPassword } });
+    btn.disabled = false;
+    btn.textContent = 'Reset password';
+    if (res.error) return showError('error-forgot-code', res.error);
+    app.token = res.token;
+    saveToken(res.token);
+    app.currentUser = res.user.email;
+    app.subscription = res.user.subscription;
+    loadUserData();
+    startKeepAlive();
+    showScreen('screen-lang');
+  });
+}
+
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   initAuth();
   initVerify();
+  initForgot();
   initLangSelect();
   initModes();
   initPayment();
@@ -944,6 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
         app.currentUser = res.user.email;
         app.subscription = res.user.subscription;
         loadUserData();
+        startKeepAlive();
         applyTranslations();
         if (app.selectedLang && app.myCountry && app.chats.length > 0) {
           renderSidebar();
